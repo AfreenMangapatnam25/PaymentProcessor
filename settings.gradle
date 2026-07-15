@@ -1,0 +1,21 @@
+rootProject.name = 'payment-processor-platform'
+
+include(
+    'user-service',
+    'merchant-service',
+    'payment-service',
+    'transaction-service',
+    'ledger-service',
+    'account-service',
+    'card-service',
+    'fraud-service',
+    'settlement-service',
+    'clearing-service',
+    'notification-service',
+    'reconciliation-service',
+    'api-gateway-service',
+    'authentication-service',
+    'discovery-service',
+    'reporting-service',
+    'audit-service'
+)
