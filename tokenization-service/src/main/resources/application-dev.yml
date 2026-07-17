@@ -1,0 +1,47 @@
+spring:
+  application:
+    name: tokenization-service
+  datasource:
+    url: jdbc:postgresql://db-dev.internal:5432/tokenization_dev
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+server:
+  port: 8084
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://eureka-dev.internal:8761/eureka/
+    register-with-eureka: true
+    fetch-registry: true
+  instance:
+    hostname: tokenization-service-dev
+
+tokenization:
+  encryption:
+    algorithm: AES/GCM/NoPadding
+    key-size: 256
+  vault:
+    retention-days: 2555
+  audit:
+    enabled: true
+
+logging:
+  level:
+    root: WARN
+    com.paymentprocessor: INFO
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,prometheus
