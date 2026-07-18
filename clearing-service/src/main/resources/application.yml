@@ -1,0 +1,5 @@
+spring:
+  application:
+    name: clearing-service
+server:
+  port: 0

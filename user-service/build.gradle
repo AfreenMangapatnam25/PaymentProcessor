@@ -1,9 +1,93 @@
 plugins {
-    id 'org.springframework.boot' version '3.3.2'
-    id 'io.spring.dependency-management' version '1.1.6'
+    id 'java'
+    id 'org.springframework.boot' version '3.5.3'
+    id 'io.spring.dependency-management' version '1.1.7'
+}
+
+group = 'com.paymentprocessor'
+version = '1.0.0-SNAPSHOT'
+description = 'user-service :: owns platform users and merchant-scoped customers (PII + GDPR crypto-shredding)'
+
+java {
+    toolchain {
+        // Pin the toolchain so the build is reproducible regardless of the host JDK.
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+ext {
+    mapstructVersion = '1.6.3'
+    springdocVersion = '2.8.9'
+    ulidVersion = '5.2.0'
 }
 
 dependencies {
+    // ---- Web / API ----
     implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation "org.springdoc:springdoc-openapi-starter-webmvc-ui:${springdocVersion}"
+
+    // ---- Persistence ----
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.flywaydb:flyway-core'
+    implementation 'org.flywaydb:flyway-database-postgresql'
+    runtimeOnly 'org.postgresql:postgresql'
+
+    // ---- Security (JWT resource server) ----
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
+
+    // ---- Messaging (outbox relay -> Kafka) ----
+    implementation 'org.springframework.kafka:spring-kafka'
+
+    // ---- Observability ----
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'io.micrometer:micrometer-registry-prometheus'
+
+    // ---- Identifiers ----
+    implementation "com.github.f4b6a3:ulid-creator:${ulidVersion}"
+
+    // ---- Mapping (entity <-> domain <-> DTO) ----
+    implementation "org.mapstruct:mapstruct:${mapstructVersion}"
+    annotationProcessor "org.mapstruct:mapstruct-processor:${mapstructVersion}"
+
+    // ---- Lombok (domain models keep it per project decision) ----
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+    // Let Lombok and MapStruct cooperate (getters/builders visible to the mapper processor).
+    annotationProcessor 'org.projectlombok:lombok-mapstruct-binding:0.2.0'
+
+    // ---- Test ----
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.security:spring-security-test'
+    testImplementation 'org.springframework.kafka:spring-kafka-test'
+    testImplementation 'org.springframework.boot:spring-boot-testcontainers'
+    testImplementation 'org.testcontainers:junit-jupiter'
+    testImplementation 'org.testcontainers:postgresql'
+    testCompileOnly 'org.projectlombok:lombok'
+    testAnnotationProcessor 'org.projectlombok:lombok'
+}
+
+dependencyManagement {
+    imports {
+        mavenBom "org.testcontainers:testcontainers-bom:1.20.6"
+    }
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.compilerArgs += [
+            '-parameters',
+            // MapStruct: fail the build on unmapped target properties rather than silently dropping them.
+            '-Amapstruct.unmappedTargetPolicy=ERROR',
+            '-Amapstruct.defaultComponentModel=spring'
+    ]
 }
