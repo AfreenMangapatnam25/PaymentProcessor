@@ -1,0 +1,109 @@
+# ==========================================================================
+# Settlement Service configuration
+#
+# Profiles:
+#   dev  (default) -> in-memory H2 database, JPA creates schema, simulated rails
+#   prod           -> PostgreSQL, Flyway migrations, stricter settings
+# ==========================================================================
+
+server:
+  port: ${SERVER_PORT:8085}
+  shutdown: graceful
+
+spring:
+  application:
+    name: settlement-service
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+  jackson:
+    default-property-inclusion: non_null
+    serialization:
+      write-dates-as-timestamps: false
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when_authorized
+      probes:
+        enabled: true
+
+# --------------------------------------------------------------------------
+# Settlement domain configuration. All monetary values are in MINOR units
+# (e.g. cents) unless otherwise stated.
+# --------------------------------------------------------------------------
+settlement:
+  # Minimum net payout (minor units) before a batch is released. Below this,
+  # funds roll over to the next cycle.
+  minimum-payout-minor: 2500
+  # Rolling reserve default hold period, in days.
+  reserve-hold-days: 90
+  retry:
+    max-attempts: 5
+    # Exponential backoff between attempts, in minutes: 1h, 4h, 12h, 24h, 48h
+    backoff-minutes: [60, 240, 720, 1440, 2880]
+  approval:
+    # Adjustments above this (minor units) require supervisor approval.
+    supervisor-threshold-minor: 100000
+    # Adjustments above this (minor units) require finance-director approval.
+    finance-director-threshold-minor: 1000000
+    # Reversals above this (minor units) require finance-director approval.
+    reversal-finance-director-threshold-minor: 500000
+  scheduler:
+    # Cron for the main settlement cycle run (default: every business hour).
+    cycle-cron: "0 0 * * * *"
+    # Cron for the retry sweep.
+    retry-cron: "0 */15 * * * *"
+    # Cron for reserve release sweep (default: daily 02:00 UTC).
+    reserve-release-cron: "0 0 2 * * *"
+    enabled: true
+
+---
+spring:
+  config:
+    activate:
+      on-profile: dev
+  datasource:
+    url: jdbc:h2:mem:settlement;DB_CLOSE_DELAY=-1;MODE=PostgreSQL
+    username: sa
+    password: ""
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+    properties:
+      hibernate.jdbc.time_zone: UTC
+  flyway:
+    enabled: false
+  h2:
+    console:
+      enabled: true
+
+---
+spring:
+  config:
+    activate:
+      on-profile: prod
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/settlement}
+    username: ${DB_USERNAME:settlement}
+    password: ${DB_PASSWORD:settlement}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:20}
+      minimum-idle: 5
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate.jdbc.time_zone: UTC
+  flyway:
+    enabled: true
+    baseline-on-migrate: true

@@ -1,0 +1,31 @@
+spring:
+  application:
+    name: dispute-service
+  datasource:
+    # Defaults to an in-memory H2 database so the service runs out of the box.
+    # Point these at PostgreSQL in production, e.g.:
+    #   url: jdbc:postgresql://localhost:5432/disputes
+    #   username: disputes
+    #   password: secret
+    url: jdbc:h2:mem:disputes;DB_CLOSE_DELAY=-1;MODE=PostgreSQL
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+
+server:
+  port: 8085
+
+# ---------------------------------------------------------------------------
+# Deadline monitor (see DeadlineMonitorJob)
+# ---------------------------------------------------------------------------
+dispute:
+  deadline:
+    sweep-interval-ms: 3600000
+    sweep-initial-delay-ms: 60000

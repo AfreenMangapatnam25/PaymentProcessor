@@ -1,0 +1,235 @@
+spring:
+  application:
+    name: gateway-service
+
+  # --- Redis: backing store for token-bucket rate limits (ephemeral) ---
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 2s
+      connect-timeout: 2s
+      lettuce:
+        pool:
+          enabled: true
+          max-active: 16
+          max-idle: 8
+          min-idle: 2
+
+  # --- Resource server: validate short-lived JWTs locally against a cached JWKS ---
+  # The Nimbus decoder fetches the JWK set once and caches it; the auth-service is
+  # NOT called on the hot path.
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: ${JWKS_URI:http://authentication-service:8080/.well-known/jwks.json}
+          # Only accept tokens minted for this platform.
+          issuer-uri: ${JWT_ISSUER_URI:}
+
+  cloud:
+    gateway:
+      # Discard duplicated response headers introduced by downstream services.
+      default-filters:
+        - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials, RETAIN_UNIQUE
+        # Never let a client spoof identity/trace headers we set ourselves.
+        - RemoveRequestHeader=X-User-Id
+        - RemoveRequestHeader=X-User-Roles
+        - RemoveRequestHeader=X-Merchant-Id
+
+      httpclient:
+        connect-timeout: 2000            # ms to establish a downstream TCP connection
+        response-timeout: 8s             # global ceiling on a downstream response
+        pool:
+          max-connections: 500
+          acquire-timeout: 5000
+
+      # Global CORS — a single public surface for browser clients.
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOriginPatterns: ${CORS_ALLOWED_ORIGINS:https://*.paymentprocessor.com}
+            allowedMethods: [GET, POST, PUT, PATCH, DELETE, OPTIONS]
+            allowedHeaders: '*'
+            allowCredentials: true
+            maxAge: 3600
+
+      routes:
+        # ---------------- Payment service ----------------
+        - id: payment-service
+          uri: ${PAYMENT_SERVICE_URI:http://payment-service:8080}
+          predicates:
+            - Path=/api/v1/payments/**,/api/v1/charges/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@apiKeyResolver}"
+                redis-rate-limiter.replenishRate: ${PAYMENT_RL_RATE:50}
+                redis-rate-limiter.burstCapacity: ${PAYMENT_RL_BURST:100}
+                redis-rate-limiter.requestedTokens: 1
+            - name: CircuitBreaker
+              args:
+                name: paymentCircuitBreaker
+                fallbackUri: forward:/fallback/payment-service
+            - name: Retry
+              args:
+                retries: 2
+                methods: GET
+                series: SERVER_ERROR
+                backoff:
+                  firstBackoff: 50ms
+                  maxBackoff: 500ms
+                  factor: 2
+
+        # ---------------- Refund service ----------------
+        - id: refund-service
+          uri: ${REFUND_SERVICE_URI:http://refund-service:8080}
+          predicates:
+            - Path=/api/v1/refunds/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@apiKeyResolver}"
+                redis-rate-limiter.replenishRate: ${REFUND_RL_RATE:20}
+                redis-rate-limiter.burstCapacity: ${REFUND_RL_BURST:40}
+            - name: CircuitBreaker
+              args:
+                name: refundCircuitBreaker
+                fallbackUri: forward:/fallback/refund-service
+
+        # ---------------- Merchant service ----------------
+        - id: merchant-service
+          uri: ${MERCHANT_SERVICE_URI:http://merchant-service:8080}
+          predicates:
+            - Path=/api/v1/merchants/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@apiKeyResolver}"
+                redis-rate-limiter.replenishRate: ${MERCHANT_RL_RATE:30}
+                redis-rate-limiter.burstCapacity: ${MERCHANT_RL_BURST:60}
+            - name: CircuitBreaker
+              args:
+                name: merchantCircuitBreaker
+                fallbackUri: forward:/fallback/merchant-service
+
+        # ---------------- User service ----------------
+        - id: user-service
+          uri: ${USER_SERVICE_URI:http://user-service:8080}
+          predicates:
+            - Path=/api/v1/users/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@apiKeyResolver}"
+                redis-rate-limiter.replenishRate: ${USER_RL_RATE:30}
+                redis-rate-limiter.burstCapacity: ${USER_RL_BURST:60}
+            - name: CircuitBreaker
+              args:
+                name: userCircuitBreaker
+                fallbackUri: forward:/fallback/user-service
+
+# --- Server / TLS termination ---
+server:
+  port: ${SERVER_PORT:8443}
+  # TLS is enabled only when a keystore is supplied (prod). Locally, omit the env
+  # vars and the gateway serves plain HTTP so you can run without certs.
+  ssl:
+    enabled: ${TLS_ENABLED:false}
+    key-store: ${TLS_KEYSTORE:}
+    key-store-password: ${TLS_KEYSTORE_PASSWORD:}
+    key-store-type: ${TLS_KEYSTORE_TYPE:PKCS12}
+    # Enforce modern transport security.
+    enabled-protocols: TLSv1.3,TLSv1.2
+  # Cap request line + header size to blunt oversized-header attacks.
+  max-http-request-header-size: 16KB
+  netty:
+    # Reject absurd request bodies early; per-route overrides via RequestSize filter.
+    max-initial-line-length: 8KB
+  forward-headers-strategy: framework
+
+# --- Resilience4j circuit breaker + time limiter defaults ---
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 20
+        minimumNumberOfCalls: 10
+        failureRateThreshold: 50
+        slowCallRateThreshold: 80
+        slowCallDurationThreshold: 5s
+        waitDurationInOpenState: 10s
+        permittedNumberOfCallsInHalfOpenState: 5
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+    instances:
+      paymentCircuitBreaker:
+        baseConfig: default
+      refundCircuitBreaker:
+        baseConfig: default
+      merchantCircuitBreaker:
+        baseConfig: default
+      userCircuitBreaker:
+        baseConfig: default
+  timelimiter:
+    configs:
+      default:
+        timeoutDuration: 8s
+        cancelRunningFuture: true
+    instances:
+      paymentCircuitBreaker: { baseConfig: default }
+      refundCircuitBreaker: { baseConfig: default }
+      merchantCircuitBreaker: { baseConfig: default }
+      userCircuitBreaker: { baseConfig: default }
+
+# --- Gateway-specific tunables (bound in GatewayProperties) ---
+gateway:
+  # Reject request bodies larger than this before proxying (bytes). 1 MiB default.
+  max-request-body-bytes: ${MAX_REQUEST_BODY_BYTES:1048576}
+  # Endpoints that skip JWT auth (health, docs, the auth handshake itself).
+  public-paths:
+    - /actuator/health/**
+    - /actuator/info
+    - /fallback/**
+    - /api/gateway/health
+  audit:
+    enabled: ${AUDIT_ENABLED:true}
+    uri: ${AUDIT_SERVICE_URI:http://audit-service:8080}
+    path: ${AUDIT_SERVICE_PATH:/api/v1/audit/events}
+  apikey:
+    header-name: ${API_KEY_HEADER:X-API-Key}
+
+# --- Observability ---
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, metrics, prometheus, gateway
+  endpoint:
+    health:
+      show-details: when_authorized
+      probes:
+        enabled: true
+  health:
+    redis:
+      enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+  tracing:
+    sampling:
+      probability: ${TRACE_SAMPLE_RATE:0.1}
+  zipkin:
+    tracing:
+      endpoint: ${ZIPKIN_ENDPOINT:http://zipkin:9411/api/v2/spans}
+
+logging:
+  pattern:
+    # Surface trace + correlation ids in every log line for cross-service debugging.
+    level: "%5p [${spring.application.name},%X{traceId:-},%X{spanId:-},%X{correlationId:-}]"
+  level:
+    root: INFO
+    org.springframework.cloud.gateway: INFO
+    com.paymentprocessor.gatewayservice: INFO
+    reactor.netty: WARN

@@ -1,0 +1,9 @@
+# Copy to application-local.yml and run with: --spring.profiles.active=local
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/merchant
+    username: merchant
+    password: merchant
+merchant-service:
+  security:
+    encryption-key: kQ9v2mZ4bXcR7tYuIoPaSdFgHjKlZxCvBnMqWeRtYuI=

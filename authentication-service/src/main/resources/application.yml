@@ -1,5 +1,104 @@
 spring:
   application:
-  name: authentication-service
+    name: authentication-service
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/authdb}
+    username: ${DB_USERNAME:auth}
+    password: ${DB_PASSWORD:auth}
+    hikari:
+      maximum-pool-size: ${DB_POOL_MAX:20}
+      minimum-idle: ${DB_POOL_MIN:5}
+  jpa:
+    open-in-view: false
+    hibernate:
+      # Flyway owns the schema. Hibernate never mutates or validates it in prod.
+      ddl-auto: none
+    properties:
+      hibernate.jdbc.time_zone: UTC
+      hibernate.format_sql: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+      retries: 3
+      properties:
+        enable.idempotence: true
+        max.block.ms: 5000
+        spring.json.add.type.headers: true
+
 server:
-  port=0
+  port: ${SERVER_PORT:8081}
+  forward-headers-strategy: framework
+  error:
+    include-message: never
+    include-stacktrace: never
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: when_authorized
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+
+auth:
+  jwt:
+    issuer: ${JWT_ISSUER:https://auth.paymentprocessor.local}
+    audience: ${JWT_AUDIENCE:payment-platform}
+    access-token-ttl: ${JWT_ACCESS_TTL:PT15M}
+    # PEM strings. If both are blank an ephemeral dev keypair is generated at startup.
+    private-key-pem: ${JWT_PRIVATE_KEY:}
+    public-key-pem: ${JWT_PUBLIC_KEY:}
+    key-id: ${JWT_KEY_ID:}
+  refresh:
+    ttl: ${REFRESH_TTL:P30D}
+  outbox:
+    relay-enabled: ${OUTBOX_RELAY_ENABLED:true}
+    batch-size: ${OUTBOX_BATCH_SIZE:100}
+    max-attempts: ${OUTBOX_MAX_ATTEMPTS:10}
+    poll-interval-ms: ${OUTBOX_POLL_MS:2000}
+  lockout:
+    max-failed-attempts: ${LOCKOUT_MAX_ATTEMPTS:5}
+    window: ${LOCKOUT_WINDOW:PT15M}
+    lock-duration: ${LOCKOUT_DURATION:PT15M}
+  ratelimit:
+    login-attempts-per-minute: ${RL_LOGIN_PER_MIN:10}
+    reset-requests-per-hour: ${RL_RESET_PER_HOUR:5}
+  password:
+    min-length: 12
+    require-uppercase: true
+    require-lowercase: true
+    require-digit: true
+    require-special: true
+    history-depth: 5
+    max-age: ${PASSWORD_MAX_AGE:P180D}
+  mfa:
+    issuer-label: ${MFA_ISSUER_LABEL:PaymentProcessor}
+    totp-step-seconds: 30
+    totp-window: 1
+    recovery-code-count: 10
+  verification:
+    token-ttl: ${VERIFICATION_TTL:PT30M}
+  reset:
+    token-ttl: ${RESET_TTL:PT30M}
+  events:
+    topics:
+      user-logged-in: ${TOPIC_LOGIN:auth.user.logged-in}
+      user-logged-out: ${TOPIC_LOGOUT:auth.user.logged-out}
+      password-changed: ${TOPIC_PWD:auth.password.changed}
+      mfa-enabled: ${TOPIC_MFA:auth.mfa.enabled}
+      account-locked: ${TOPIC_LOCK:auth.account.locked}
+      new-device: ${TOPIC_DEVICE:auth.device.new-login}

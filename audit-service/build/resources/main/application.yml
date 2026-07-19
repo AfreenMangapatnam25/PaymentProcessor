@@ -1,0 +1,121 @@
+spring:
+  application:
+    name: audit-service
+
+  data:
+    mongodb:
+      uri: ${MONGODB_URI:mongodb://localhost:27017/audit}
+      auto-index-creation: false   # indexes are created explicitly at startup
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      group-id: ${KAFKA_GROUP_ID:audit-service}
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      properties:
+        spring.json.trusted.packages: "com.paymentprocessor.auditservice.*"
+        max.poll.records: 200
+    listener:
+      ack-mode: manual
+      concurrency: ${KAFKA_CONCURRENCY:3}
+
+server:
+  port: ${SERVER_PORT:8080}
+  shutdown: graceful
+  error:
+    include-message: never
+    include-stacktrace: never
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: when-authorized
+  metrics:
+    tags:
+      application: audit-service
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+
+logging:
+  level:
+    root: INFO
+    com.paymentprocessor.auditservice: INFO
+
+# ---------------------------------------------------------------------------
+# audit-service specific configuration
+# ---------------------------------------------------------------------------
+audit:
+  security:
+    # Comma-separated list of accepted internal API keys. Callers present one via
+    # the X-Api-Key header. Leave empty ONLY in local/dev profiles.
+    api-keys: ${AUDIT_API_KEYS:local-dev-key}
+    enabled: ${AUDIT_API_KEY_ENABLED:true}
+
+  chain:
+    # Genesis hash used as prev_hash of the very first record in the chain.
+    genesis-hash: "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+
+  ingestion:
+    # Reject before/after payloads that appear to contain raw PII.
+    pii-guard-enabled: true
+    max-retries-on-contention: 8
+
+  kafka:
+    enabled: ${AUDIT_KAFKA_ENABLED:true}
+    topic: ${AUDIT_KAFKA_TOPIC:audit.events}
+    dlt-topic: ${AUDIT_KAFKA_DLT_TOPIC:audit.events.DLT}
+
+  batch:
+    enabled: ${AUDIT_BATCH_ENABLED:true}
+    # Runs daily; seals the previous UTC day. Default 00:30 UTC.
+    cron: ${AUDIT_BATCH_CRON:0 30 0 * * *}
+    zone: UTC
+    retention-years: ${AUDIT_RETENTION_YEARS:10}
+
+  s3:
+    enabled: ${AUDIT_S3_ENABLED:true}
+    bucket: ${AUDIT_S3_BUCKET:payment-processor-audit-legal}
+    region: ${AWS_REGION:us-east-1}
+    # Optional override for LocalStack / custom endpoints. Blank = real AWS.
+    endpoint: ${AUDIT_S3_ENDPOINT:}
+    key-prefix: ${AUDIT_S3_PREFIX:audit-batches}
+    # COMPLIANCE cannot be shortened or removed even by the root account.
+    object-lock-mode: COMPLIANCE
+
+  signing:
+    # Base64-encoded PKCS#8 EC (P-256) private key used to sign daily batch roots.
+    # Injected from a secrets manager in production. Blank disables signing (dev only).
+    private-key-pkcs8: ${AUDIT_SIGNING_KEY:}
+    key-id: ${AUDIT_SIGNING_KEY_ID:audit-batch-signer-v1}
+
+  anchor:
+    # External anchoring of the daily root hash (timestamping authority, notary,
+    # or a public ledger). "log" writes to the audit log; "http" POSTs to endpoint.
+    mode: ${AUDIT_ANCHOR_MODE:log}
+    endpoint: ${AUDIT_ANCHOR_ENDPOINT:}
+
+---
+spring:
+  config:
+    activate:
+      on-profile: local
+audit:
+  security:
+    enabled: false
+  s3:
+    enabled: false
+  batch:
+    enabled: false
+  kafka:
+    enabled: false

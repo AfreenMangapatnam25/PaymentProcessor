@@ -1,0 +1,72 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://db-prod.internal:5432/authorization_prod
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 25
+      minimum-idle: 5
+      max-lifetime: 1800000
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka-prod.internal:9092}
+
+server:
+  port: 8086
+  ssl:
+    enabled: true
+    key-store: ${SSL_KEYSTORE_PATH}
+    key-store-password: ${SSL_KEYSTORE_PASSWORD}
+    key-store-type: PKCS12
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://eureka-prod.internal:8761/eureka/
+    register-with-eureka: true
+    fetch-registry: true
+  instance:
+    hostname: authorization-service-prod
+    prefer-ip-address: false
+
+authorization:
+  timeout-seconds: 60
+  retry-attempts: 5
+  avs-required: true
+  three-ds-enabled: true
+
+gateway:
+  provider: stripe
+  stripe:
+    api-key: ${STRIPE_API_KEY}
+
+security:
+  jwt:
+    verify-signature: true
+    public-key: ${JWT_PUBLIC_KEY:}
+    hmac-secret: ${JWT_HMAC_SECRET:}
+    issuer: ${JWT_ISSUER:}
+
+logging:
+  level:
+    root: WARN
+    com.paymentprocessor: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %logger{36} - %msg%n"
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,prometheus
+  metrics:
+    export:
+      prometheus:
+        enabled: true

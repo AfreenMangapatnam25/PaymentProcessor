@@ -1,11 +1,68 @@
 plugins {
+    id 'java'
     id 'org.springframework.boot' version '3.3.2'
     id 'io.spring.dependency-management' version '1.1.6'
 }
 
+group = 'com.paymentprocessor'
+version = '1.0.0'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+ext {
+    nimbusVersion = '9.40'
+    bouncyCastleVersion = '1.78.1'
+    springdocVersion = '2.6.0'
+    commonsCodecVersion = '1.17.1'
+}
+
 dependencies {
+    // Web / persistence / security
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+
+    // Messaging
+    implementation 'org.springframework.kafka:spring-kafka'
+
+    // Migrations
+    implementation 'org.flywaydb:flyway-core'
+    implementation 'org.flywaydb:flyway-database-postgresql'
+
+    // JWT (RS256 + JWKS) via Nimbus
+    implementation "com.nimbusds:nimbus-jose-jwt:${nimbusVersion}"
+
+    // Argon2 password hashing (spring-security-crypto needs BouncyCastle for Argon2)
+    implementation "org.bouncycastle:bcprov-jdk18on:${bouncyCastleVersion}"
+
+    // Base32 for TOTP secrets
+    implementation "commons-codec:commons-codec:${commonsCodecVersion}"
+
+    // In-memory rate limiting
+    implementation 'com.github.ben-manes.caffeine:caffeine'
+
+    // OpenAPI / Swagger UI
+    implementation "org.springdoc:springdoc-openapi-starter-webmvc-ui:${springdocVersion}"
+
     runtimeOnly 'org.postgresql:postgresql'
+
+    // Tests
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.security:spring-security-test'
+    testImplementation 'org.springframework.kafka:spring-kafka-test'
+    testRuntimeOnly 'com.h2database:h2'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
 }

@@ -1,0 +1,51 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/authorization_local
+    username: postgres
+    password: postgres
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      # Flyway owns the schema; Hibernate only validates against it.
+      ddl-auto: validate
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+  flyway:
+    enabled: true
+  kafka:
+    bootstrap-servers: localhost:9092
+
+server:
+  port: 8086
+
+eureka:
+  client:
+    register-with-eureka: false
+    fetch-registry: false
+
+authorization:
+  timeout-seconds: 30
+  retry-attempts: 3
+  avs-required: true
+  three-ds-enabled: true
+
+gateway:
+  provider: stripe
+  stripe:
+    # Use a Stripe test-mode secret key (sk_test_...) locally.
+    api-key: ${STRIPE_API_KEY:}
+
+security:
+  jwt:
+    # Local convenience: decode identity tokens without signature verification.
+    verify-signature: false
+
+logging:
+  level:
+    root: INFO
+    com.paymentprocessor: DEBUG
+    org.springframework.web: DEBUG
+    org.hibernate.SQL: DEBUG

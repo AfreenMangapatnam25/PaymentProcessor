@@ -1,0 +1,50 @@
+### Ledger Service — sample requests (use with IntelliJ HTTP client / VS Code REST Client)
+@base = http://localhost:8080
+
+### Health
+GET {{base}}/actuator/health
+
+### List the seeded chart of accounts
+GET {{base}}/api/v1/accounts
+
+### Post a balanced journal (payment capture: $100 -> $97 merchant + $3 fee)
+POST {{base}}/api/v1/journals
+Content-Type: application/json
+
+{
+  "eventType": "PAYMENT_CAPTURED",
+  "externalRef": "PAY-8842",
+  "idempotencyKey": "PAY-8842-capture",
+  "description": "Capture of PAY-8842",
+  "createdBy": "payment-service",
+  "lines": [
+    { "accountId": "1101", "direction": "DEBIT",  "amountMinor": 9700 },
+    { "accountId": "1103", "direction": "DEBIT",  "amountMinor": 300 },
+    { "accountId": "2102", "direction": "CREDIT", "amountMinor": 9700 },
+    { "accountId": "4101", "direction": "CREDIT", "amountMinor": 300 }
+  ]
+}
+
+### Balance of the settlement cash account
+GET {{base}}/api/v1/accounts/1101/balance
+
+### Trial balance (should be balanced)
+GET {{base}}/api/v1/trial-balance
+
+### Reverse a journal (replace {id} with the posted journal id)
+POST {{base}}/api/v1/journals/{id}/reverse
+Content-Type: application/json
+
+{ "reason": "TRANSACTION_REVERSED", "createdBy": "refund-service" }
+
+### Place a hold on available balance
+POST {{base}}/api/v1/holds
+Content-Type: application/json
+
+{ "accountId": "1101", "amountMinor": 1000, "reason": "RISK_REVIEW", "externalRef": "PAY-8842" }
+
+### Generate end-of-day snapshots
+POST {{base}}/api/v1/snapshots
+Content-Type: application/json
+
+{ "asOfDate": "2026-07-19", "snapshotType": "EOD" }
