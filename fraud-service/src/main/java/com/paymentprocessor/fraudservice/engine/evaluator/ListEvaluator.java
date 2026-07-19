@@ -5,7 +5,7 @@ import java.util.List;
 
 import org.springframework.stereotype.Component;
 
-import com.paymentprocessor.fraudservice.document.ListEntry;
+import com.paymentprocessor.fraudservice.domain.entity.ListEntry;
 import com.paymentprocessor.fraudservice.dto.FraudEvaluationRequest;
 import com.paymentprocessor.fraudservice.engine.RiskContext;
 import com.paymentprocessor.fraudservice.engine.SignalEvaluator;

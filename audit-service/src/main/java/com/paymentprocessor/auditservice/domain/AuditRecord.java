@@ -1,14 +1,24 @@
 package com.paymentprocessor.auditservice.domain;
 
+import java.io.Serializable;
 import java.time.Instant;
 import java.util.Map;
 
-import org.springframework.data.annotation.Id;
-import org.springframework.data.mongodb.core.mapping.Document;
-import org.springframework.data.mongodb.core.mapping.Field;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+import org.springframework.data.domain.Persistable;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Embedded;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.PostLoad;
+import jakarta.persistence.PostPersist;
+import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 
 /**
- * An immutable audit record — the query copy held in MongoDB.
+ * An immutable audit record — the query copy held in PostgreSQL.
  *
  * <p>Records are append-only: once written they are never updated or deleted. Each
  * record carries a strictly increasing {@code seq} and is hash-chained to its
@@ -17,9 +27,16 @@ import org.springframework.data.mongodb.core.mapping.Field;
  *
  * <p>{@code before}/{@code after} hold redacted diffs only — references and masked
  * values, never raw PII — which is what keeps these records exempt from GDPR erasure.
+ *
+ * <p>Implements {@link Persistable} because the id is a client-assigned ULID (not a
+ * database-generated key): without this, Spring Data JPA would issue a merge (select
+ * then insert/update) instead of a plain insert, which would mask the unique-constraint
+ * races on {@code seq}/{@code event_id} that {@code AuditIngestionService} relies on to
+ * serialise concurrent chain appends.
  */
-@Document(collection = "audit_records")
-public class AuditRecord {
+@Entity
+@Table(name = "audit_records")
+public class AuditRecord implements Persistable<String> {
 
     /** Public identifier, e.g. {@code aud_01J...} (ULID-based, lexicographically sortable). */
     @Id
@@ -29,53 +46,67 @@ public class AuditRecord {
      * Strictly increasing position in the global hash chain. Unique — this is the
      * mutual-exclusion guard that serialises concurrent appends.
      */
+    @Column(nullable = false, unique = true)
     private long seq;
 
     /** Business timestamp of the event (when it happened at the source). */
     private Instant ts;
 
     /** Server-side receive time (when this service persisted the record). */
+    @Column(name = "recorded_at")
     private Instant recordedAt;
 
+    @Embedded
     private Actor actor;
+
     private String action;
+
+    @Embedded
     private ResourceRef resource;
 
-    @Field("merchant_id")
+    @Column(name = "merchant_id")
     private String merchantId;
 
     /** Redacted prior state. Never raw PII. */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(columnDefinition = "jsonb")
     private Map<String, Object> before;
 
     /** Redacted new state. Never raw PII. */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(columnDefinition = "jsonb")
     private Map<String, Object> after;
 
-    @Field("request_id")
+    @Column(name = "request_id")
     private String requestId;
 
-    @Field("trace_id")
+    @Column(name = "trace_id")
     private String traceId;
 
     /**
      * Idempotency / dedup key supplied by the producer (unique). Two deliveries of the
      * same logical event collapse to a single record.
      */
-    @Field("event_id")
+    @Column(name = "event_id", unique = true)
     private String eventId;
 
-    @Field("prev_hash")
+    @Column(name = "prev_hash")
     private String prevHash;
 
     /** {@code sha256:...} over the canonical form of this record plus {@code prevHash}. */
     private String hash;
 
     /** Set once the record has been sealed into a daily S3 batch; null until then. */
-    @Field("batch_id")
+    @Column(name = "batch_id")
     private String batchId;
+
+    @Transient
+    private transient boolean isNew = true;
 
     public AuditRecord() {
     }
 
+    @Override
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
     public long getSeq() { return seq; }
@@ -108,4 +139,11 @@ public class AuditRecord {
     public void setHash(String hash) { this.hash = hash; }
     public String getBatchId() { return batchId; }
     public void setBatchId(String batchId) { this.batchId = batchId; }
+
+    @Override
+    public boolean isNew() { return isNew; }
+
+    @PostPersist
+    @PostLoad
+    void markNotNew() { this.isNew = false; }
 }

@@ -14,6 +14,7 @@ public class ConnectorProperties {
     private Upi upi = new Upi();
     private Endpoint fraud = new Endpoint();
     private Endpoint vault = new Endpoint();
+    private Endpoint limit = new Endpoint();
     private Outbox outbox = new Outbox();
 
     public Endpoint getCard() { return card; }
@@ -27,6 +28,9 @@ public class ConnectorProperties {
 
     public Endpoint getVault() { return vault; }
     public void setVault(Endpoint vault) { this.vault = vault; }
+
+    public Endpoint getLimit() { return limit; }
+    public void setLimit(Endpoint limit) { this.limit = limit; }
 
     public Outbox getOutbox() { return outbox; }
     public void setOutbox(Outbox outbox) { this.outbox = outbox; }

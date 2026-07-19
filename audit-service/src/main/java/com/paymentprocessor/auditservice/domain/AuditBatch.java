@@ -3,16 +3,29 @@ package com.paymentprocessor.auditservice.domain;
 import java.time.Instant;
 import java.time.LocalDate;
 
-import org.springframework.data.annotation.Id;
-import org.springframework.data.mongodb.core.mapping.Document;
-import org.springframework.data.mongodb.core.mapping.Field;
+import org.springframework.data.domain.Persistable;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.Id;
+import jakarta.persistence.PostLoad;
+import jakarta.persistence.PostPersist;
+import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 
 /**
  * Metadata for a sealed daily batch — the legal copy written to S3 with Object Lock.
- * The batch content itself lives in S3; this document is the queryable manifest.
+ * The batch content itself lives in S3; this row is the queryable manifest.
+ *
+ * <p>Implements {@link Persistable} for the same reason as {@link AuditRecord}: the id
+ * is client-assigned ({@code batch_<date>}), so without it Spring Data JPA would merge
+ * instead of insert, masking the idempotent-create race in {@code DailyBatchService}.
  */
-@Document(collection = "audit_batches")
-public class AuditBatch {
+@Entity
+@Table(name = "audit_batches")
+public class AuditBatch implements Persistable<String> {
 
     public enum Status { SEALING, STORED, ANCHORED, FAILED }
 
@@ -21,39 +34,55 @@ public class AuditBatch {
     private String id;
 
     /** UTC day the batch seals. */
+    @Column(name = "batch_date")
     private LocalDate batchDate;
 
+    @Column(name = "from_seq")
     private long fromSeq;
+    @Column(name = "to_seq")
     private long toSeq;
+    @Column(name = "record_count")
     private long recordCount;
 
     /** Merkle root over the record hashes, {@code sha256:...}. Empty batches have a sentinel. */
+    @Column(name = "root_hash")
     private String rootHash;
 
     /** Base64 signature over the signing payload (root + range + date). */
     private String signature;
+    @Column(name = "signing_key_id")
     private String signingKeyId;
 
-    @Field("s3_bucket")
+    @Column(name = "s3_bucket")
     private String s3Bucket;
-    @Field("s3_key")
+    @Column(name = "s3_key")
     private String s3Key;
-    @Field("s3_version_id")
+    @Column(name = "s3_version_id")
     private String s3VersionId;
 
     /** Object Lock retain-until instant (COMPLIANCE mode). */
+    @Column(name = "retain_until")
     private Instant retainUntil;
 
     /** Reference returned by the external anchoring service. */
+    @Column(name = "anchor_ref")
     private String anchorRef;
 
+    @Enumerated(EnumType.STRING)
     private Status status;
+
+    @Column(name = "created_at")
     private Instant createdAt;
+    @Column(name = "sealed_at")
     private Instant sealedAt;
+
+    @Transient
+    private transient boolean isNew = true;
 
     public AuditBatch() {
     }
 
+    @Override
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
     public LocalDate getBatchDate() { return batchDate; }
@@ -86,4 +115,11 @@ public class AuditBatch {
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
     public Instant getSealedAt() { return sealedAt; }
     public void setSealedAt(Instant sealedAt) { this.sealedAt = sealedAt; }
+
+    @Override
+    public boolean isNew() { return isNew; }
+
+    @PostPersist
+    @PostLoad
+    void markNotNew() { this.isNew = false; }
 }

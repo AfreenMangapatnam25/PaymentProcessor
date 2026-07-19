@@ -8,7 +8,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 /**
  * audit-service — the immutable, tamper-evident audit trail.
  *
- * <p>MongoDB holds the query copy; the legal copy is a daily signed batch written to
+ * <p>PostgreSQL holds the query copy; the legal copy is a daily signed batch written to
  * S3 with Object Lock (WORM). Every record is hash-chained to its predecessor so any
  * tampering is detectable, and the daily root hash is anchored externally.
  */

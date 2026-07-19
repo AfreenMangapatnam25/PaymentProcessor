@@ -7,7 +7,7 @@
 # ==========================================================================
 
 server:
-  port: ${SERVER_PORT:8085}
+  port: ${SERVER_PORT:8091}
   shutdown: graceful
 
 spring:
@@ -62,6 +62,13 @@ settlement:
     # Cron for reserve release sweep (default: daily 02:00 UTC).
     reserve-release-cron: "0 0 2 * * *"
     enabled: true
+  integration:
+    ledger:
+      base-url: ${LEDGER_SERVICE_URL:http://localhost:8092}
+      timeout-ms: ${LEDGER_SERVICE_TIMEOUT_MS:5000}
+    merchant:
+      base-url: ${MERCHANT_SERVICE_URL:http://localhost:8083}
+      timeout-ms: ${MERCHANT_SERVICE_TIMEOUT_MS:3000}
 
 ---
 spring:

@@ -12,7 +12,7 @@ import org.springframework.expression.spel.standard.SpelExpressionParser;
 import org.springframework.expression.spel.support.SimpleEvaluationContext;
 import org.springframework.stereotype.Component;
 
-import com.paymentprocessor.fraudservice.document.Rule;
+import com.paymentprocessor.fraudservice.domain.entity.Rule;
 import com.paymentprocessor.fraudservice.dto.FraudEvaluationRequest;
 import com.paymentprocessor.fraudservice.dto.RuleHit;
 import com.paymentprocessor.fraudservice.engine.RiskContext;

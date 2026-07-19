@@ -130,6 +130,306 @@ spring:
                 name: userCircuitBreaker
                 fallbackUri: forward:/fallback/user-service
 
+        # ---------------- Authentication service ----------------
+        - id: authentication-service
+          uri: ${AUTHENTICATION_SERVICE_URI:http://authentication-service:8080}
+          predicates:
+            - Path=/api/v1/auth/**,/api/v1/mfa/**,/api/v1/passwords/**,/api/v1/devices/**,/api/v1/api-keys/**,/api/v1/verification/**,/api/v1/admin/identities/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@apiKeyResolver}"
+                redis-rate-limiter.replenishRate: ${AUTHENTICATION_RL_RATE:30}
+                redis-rate-limiter.burstCapacity: ${AUTHENTICATION_RL_BURST:60}
+            - name: CircuitBreaker
+              args:
+                name: authenticationCircuitBreaker
+                fallbackUri: forward:/fallback/authentication-service
+            - name: Retry
+              args:
+                retries: 2
+                methods: GET
+                series: SERVER_ERROR
+                backoff:
+                  firstBackoff: 50ms
+                  maxBackoff: 500ms
+                  factor: 2
+
+        # ---------------- Tokenization service ----------------
+        - id: tokenization-service
+          uri: ${TOKENIZATION_SERVICE_URI:http://tokenization-service:8080}
+          predicates:
+            - Path=/api/instruments/**,/api/card-details/**,/api/network-tokens/**,/api/bin-ranges/**,/api/bank-details/**,/api/dek-registry/**,/api/instrument-access-log/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@apiKeyResolver}"
+                redis-rate-limiter.replenishRate: ${TOKENIZATION_RL_RATE:30}
+                redis-rate-limiter.burstCapacity: ${TOKENIZATION_RL_BURST:60}
+            - name: CircuitBreaker
+              args:
+                name: tokenizationCircuitBreaker
+                fallbackUri: forward:/fallback/tokenization-service
+            - name: Retry
+              args:
+                retries: 2
+                methods: GET
+                series: SERVER_ERROR
+                backoff:
+                  firstBackoff: 50ms
+                  maxBackoff: 500ms
+                  factor: 2
+
+        # ---------------- Limit service ----------------
+        - id: limit-service
+          uri: ${LIMIT_SERVICE_URI:http://limit-service:8080}
+          predicates:
+            - Path=/api/v1/limits/**,/api/v1/limit-configs/**,/api/v1/reservations/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@apiKeyResolver}"
+                redis-rate-limiter.replenishRate: ${LIMIT_RL_RATE:30}
+                redis-rate-limiter.burstCapacity: ${LIMIT_RL_BURST:60}
+            - name: CircuitBreaker
+              args:
+                name: limitCircuitBreaker
+                fallbackUri: forward:/fallback/limit-service
+            - name: Retry
+              args:
+                retries: 2
+                methods: GET
+                series: SERVER_ERROR
+                backoff:
+                  firstBackoff: 50ms
+                  maxBackoff: 500ms
+                  factor: 2
+
+        # ---------------- Authorization service ----------------
+        - id: authorization-service
+          uri: ${AUTHORIZATION_SERVICE_URI:http://authorization-service:8080}
+          predicates:
+            - Path=/api/v1/authorizations/**,/api/v1/access/**,/api/v1/admin/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@apiKeyResolver}"
+                redis-rate-limiter.replenishRate: ${AUTHORIZATION_RL_RATE:50}
+                redis-rate-limiter.burstCapacity: ${AUTHORIZATION_RL_BURST:100}
+            - name: CircuitBreaker
+              args:
+                name: authorizationCircuitBreaker
+                fallbackUri: forward:/fallback/authorization-service
+            - name: Retry
+              args:
+                retries: 2
+                methods: GET
+                series: SERVER_ERROR
+                backoff:
+                  firstBackoff: 50ms
+                  maxBackoff: 500ms
+                  factor: 2
+
+        # ---------------- Fraud service ----------------
+        - id: fraud-service
+          uri: ${FRAUD_SERVICE_URI:http://fraud-service:8080}
+          predicates:
+            - Path=/api/fraud/**,/api/cases/**,/api/rules/**,/api/risk-assessments/**,/api/lists/**,/api/model-registry/**,/api/devices/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@apiKeyResolver}"
+                redis-rate-limiter.replenishRate: ${FRAUD_RL_RATE:30}
+                redis-rate-limiter.burstCapacity: ${FRAUD_RL_BURST:60}
+            - name: CircuitBreaker
+              args:
+                name: fraudCircuitBreaker
+                fallbackUri: forward:/fallback/fraud-service
+            - name: Retry
+              args:
+                retries: 2
+                methods: GET
+                series: SERVER_ERROR
+                backoff:
+                  firstBackoff: 50ms
+                  maxBackoff: 500ms
+                  factor: 2
+
+        # ---------------- Clearing service ----------------
+        - id: clearing-service
+          uri: ${CLEARING_SERVICE_URI:http://clearing-service:8080}
+          predicates:
+            - Path=/api/v1/clearing/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@apiKeyResolver}"
+                redis-rate-limiter.replenishRate: ${CLEARING_RL_RATE:30}
+                redis-rate-limiter.burstCapacity: ${CLEARING_RL_BURST:60}
+            - name: CircuitBreaker
+              args:
+                name: clearingCircuitBreaker
+                fallbackUri: forward:/fallback/clearing-service
+            - name: Retry
+              args:
+                retries: 2
+                methods: GET
+                series: SERVER_ERROR
+                backoff:
+                  firstBackoff: 50ms
+                  maxBackoff: 500ms
+                  factor: 2
+
+        # ---------------- Dispute service ----------------
+        - id: dispute-service
+          uri: ${DISPUTE_SERVICE_URI:http://dispute-service:8080}
+          predicates:
+            - Path=/api/v1/disputes/**,/api/v1/reason-codes/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@apiKeyResolver}"
+                redis-rate-limiter.replenishRate: ${DISPUTE_RL_RATE:30}
+                redis-rate-limiter.burstCapacity: ${DISPUTE_RL_BURST:60}
+            - name: CircuitBreaker
+              args:
+                name: disputeCircuitBreaker
+                fallbackUri: forward:/fallback/dispute-service
+            - name: Retry
+              args:
+                retries: 2
+                methods: GET
+                series: SERVER_ERROR
+                backoff:
+                  firstBackoff: 50ms
+                  maxBackoff: 500ms
+                  factor: 2
+
+        # ---------------- Settlement service ----------------
+        - id: settlement-service
+          uri: ${SETTLEMENT_SERVICE_URI:http://settlement-service:8080}
+          predicates:
+            - Path=/api/payouts/**,/api/payout-returns/**,/api/settlement-runs/**,/api/settlement-items/**,/api/settlement-batches/**,/api/adjustments/**,/api/reserves/**,/api/reports/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@apiKeyResolver}"
+                redis-rate-limiter.replenishRate: ${SETTLEMENT_RL_RATE:30}
+                redis-rate-limiter.burstCapacity: ${SETTLEMENT_RL_BURST:60}
+            - name: CircuitBreaker
+              args:
+                name: settlementCircuitBreaker
+                fallbackUri: forward:/fallback/settlement-service
+            - name: Retry
+              args:
+                retries: 2
+                methods: GET
+                series: SERVER_ERROR
+                backoff:
+                  firstBackoff: 50ms
+                  maxBackoff: 500ms
+                  factor: 2
+
+        # ---------------- Ledger service ----------------
+        - id: ledger-service
+          uri: ${LEDGER_SERVICE_URI:http://ledger-service:8080}
+          predicates:
+            - Path=/api/v1/accounts/**,/api/v1/journals/**,/api/v1/entries/**,/api/v1/periods/**,/api/v1/currencies/**,/api/v1/account-types/**,/api/v1/trial-balance/**,/api/balance-shards/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@apiKeyResolver}"
+                redis-rate-limiter.replenishRate: ${LEDGER_RL_RATE:30}
+                redis-rate-limiter.burstCapacity: ${LEDGER_RL_BURST:60}
+            - name: CircuitBreaker
+              args:
+                name: ledgerCircuitBreaker
+                fallbackUri: forward:/fallback/ledger-service
+            - name: Retry
+              args:
+                retries: 2
+                methods: GET
+                series: SERVER_ERROR
+                backoff:
+                  firstBackoff: 50ms
+                  maxBackoff: 500ms
+                  factor: 2
+
+        # ---------------- Reconciliation service ----------------
+        - id: reconciliation-service
+          uri: ${RECONCILIATION_SERVICE_URI:http://reconciliation-service:8080}
+          predicates:
+            - Path=/api/v1/recon-runs/**,/api/v1/records/**,/api/v1/matches/**,/api/v1/exceptions/**,/api/v1/statements/**,/api/v1/adjustments/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@apiKeyResolver}"
+                redis-rate-limiter.replenishRate: ${RECONCILIATION_RL_RATE:30}
+                redis-rate-limiter.burstCapacity: ${RECONCILIATION_RL_BURST:60}
+            - name: CircuitBreaker
+              args:
+                name: reconciliationCircuitBreaker
+                fallbackUri: forward:/fallback/reconciliation-service
+            - name: Retry
+              args:
+                retries: 2
+                methods: GET
+                series: SERVER_ERROR
+                backoff:
+                  firstBackoff: 50ms
+                  maxBackoff: 500ms
+                  factor: 2
+
+        # ---------------- Audit service ----------------
+        - id: audit-service
+          uri: ${AUDIT_SERVICE_URI_ROUTE:http://audit-service:8080}
+          predicates:
+            - Path=/api/v1/audit-records/**,/api/v1/audit/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@apiKeyResolver}"
+                redis-rate-limiter.replenishRate: ${AUDIT_RL_RATE:30}
+                redis-rate-limiter.burstCapacity: ${AUDIT_RL_BURST:60}
+            - name: CircuitBreaker
+              args:
+                name: auditCircuitBreaker
+                fallbackUri: forward:/fallback/audit-service
+            - name: Retry
+              args:
+                retries: 2
+                methods: GET
+                series: SERVER_ERROR
+                backoff:
+                  firstBackoff: 50ms
+                  maxBackoff: 500ms
+                  factor: 2
+
+        # ---------------- Reporting service ----------------
+        - id: reporting-service
+          uri: ${REPORTING_SERVICE_URI:http://reporting-service:8080}
+          predicates:
+            - Path=/api/v1/reports/**,/api/v1/analytics/**,/api/v1/query/**,/api/v1/schedules/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@apiKeyResolver}"
+                redis-rate-limiter.replenishRate: ${REPORTING_RL_RATE:30}
+                redis-rate-limiter.burstCapacity: ${REPORTING_RL_BURST:60}
+            - name: CircuitBreaker
+              args:
+                name: reportingCircuitBreaker
+                fallbackUri: forward:/fallback/reporting-service
+            - name: Retry
+              args:
+                retries: 2
+                methods: GET
+                series: SERVER_ERROR
+                backoff:
+                  firstBackoff: 50ms
+                  maxBackoff: 500ms
+                  factor: 2
+
 # --- Server / TLS termination ---
 server:
   port: ${SERVER_PORT:8443}
@@ -172,6 +472,30 @@ resilience4j:
         baseConfig: default
       userCircuitBreaker:
         baseConfig: default
+      authenticationCircuitBreaker:
+        baseConfig: default
+      tokenizationCircuitBreaker:
+        baseConfig: default
+      limitCircuitBreaker:
+        baseConfig: default
+      authorizationCircuitBreaker:
+        baseConfig: default
+      fraudCircuitBreaker:
+        baseConfig: default
+      clearingCircuitBreaker:
+        baseConfig: default
+      disputeCircuitBreaker:
+        baseConfig: default
+      settlementCircuitBreaker:
+        baseConfig: default
+      ledgerCircuitBreaker:
+        baseConfig: default
+      reconciliationCircuitBreaker:
+        baseConfig: default
+      auditCircuitBreaker:
+        baseConfig: default
+      reportingCircuitBreaker:
+        baseConfig: default
   timelimiter:
     configs:
       default:
@@ -182,6 +506,18 @@ resilience4j:
       refundCircuitBreaker: { baseConfig: default }
       merchantCircuitBreaker: { baseConfig: default }
       userCircuitBreaker: { baseConfig: default }
+      authenticationCircuitBreaker: { baseConfig: default }
+      tokenizationCircuitBreaker: { baseConfig: default }
+      limitCircuitBreaker: { baseConfig: default }
+      authorizationCircuitBreaker: { baseConfig: default }
+      fraudCircuitBreaker: { baseConfig: default }
+      clearingCircuitBreaker: { baseConfig: default }
+      disputeCircuitBreaker: { baseConfig: default }
+      settlementCircuitBreaker: { baseConfig: default }
+      ledgerCircuitBreaker: { baseConfig: default }
+      reconciliationCircuitBreaker: { baseConfig: default }
+      auditCircuitBreaker: { baseConfig: default }
+      reportingCircuitBreaker: { baseConfig: default }
 
 # --- Gateway-specific tunables (bound in GatewayProperties) ---
 gateway:

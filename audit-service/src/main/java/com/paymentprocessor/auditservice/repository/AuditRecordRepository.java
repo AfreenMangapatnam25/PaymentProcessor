@@ -5,8 +5,7 @@ import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.mongodb.repository.MongoRepository;
-import org.springframework.data.mongodb.repository.Query;
+import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import com.paymentprocessor.auditservice.domain.AuditRecord;
@@ -18,7 +17,7 @@ import com.paymentprocessor.auditservice.domain.AuditRecord;
  * records are append-only; the service layer never mutates or removes them.
  */
 @Repository
-public interface AuditRecordRepository extends MongoRepository<AuditRecord, String> {
+public interface AuditRecordRepository extends JpaRepository<AuditRecord, String> {
 
     Optional<AuditRecord> findByEventId(String eventId);
 
@@ -33,8 +32,7 @@ public interface AuditRecordRepository extends MongoRepository<AuditRecord, Stri
 
     /**
      * Ordered, inclusive slice of the chain by sequence — used for verification and
-     * batching. Explicit GTE/LTE is used because Spring Data MongoDB's {@code Between}
-     * keyword is exclusive on both bounds.
+     * batching.
      */
     List<AuditRecord> findBySeqGreaterThanEqualAndSeqLessThanEqualOrderBySeqAsc(
             long fromInclusive, long toInclusive);
@@ -43,6 +41,5 @@ public interface AuditRecordRepository extends MongoRepository<AuditRecord, Stri
     List<AuditRecord> findByRecordedAtGreaterThanEqualAndRecordedAtLessThanOrderBySeqAsc(
             Instant fromInclusive, Instant toExclusive);
 
-    @Query(value = "{ 'recordedAt': { $gte: ?0, $lt: ?1 } }", count = true)
-    long countInRecordedWindow(Instant fromInclusive, Instant toExclusive);
+    long countByRecordedAtGreaterThanEqualAndRecordedAtLessThan(Instant fromInclusive, Instant toExclusive);
 }

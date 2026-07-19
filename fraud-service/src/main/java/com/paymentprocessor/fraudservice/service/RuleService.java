@@ -2,8 +2,9 @@ package com.paymentprocessor.fraudservice.service;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import org.springframework.stereotype.Service;
-import com.paymentprocessor.fraudservice.document.Rule;
+import com.paymentprocessor.fraudservice.domain.entity.Rule;
 import com.paymentprocessor.fraudservice.repository.RuleRepository;
 
 @Service
@@ -19,7 +20,7 @@ public class RuleService {
         return repository.findAll();
     }
 
-    public Optional<Rule> findById(String id) {
+    public Optional<Rule> findById(UUID id) {
         return repository.findById(id);
     }
 
@@ -27,7 +28,7 @@ public class RuleService {
         return repository.save(entity);
     }
 
-    public void deleteById(String id) {
+    public void deleteById(UUID id) {
         repository.deleteById(id);
     }
 }

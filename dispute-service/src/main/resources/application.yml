@@ -2,25 +2,49 @@ spring:
   application:
     name: dispute-service
   datasource:
-    # Defaults to an in-memory H2 database so the service runs out of the box.
-    # Point these at PostgreSQL in production, e.g.:
-    #   url: jdbc:postgresql://localhost:5432/disputes
-    #   username: disputes
-    #   password: secret
-    url: jdbc:h2:mem:disputes;DB_CLOSE_DELAY=-1;MODE=PostgreSQL
-    driver-class-name: org.h2.Driver
-    username: sa
-    password:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:dispute_db}
+    username: ${DB_USERNAME:dispute_service}
+    password: ${DB_PASSWORD:dispute_service}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:20}
+      minimum-idle: 5
+      connection-timeout: 30000
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
     open-in-view: false
     properties:
       hibernate:
         format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
 
 server:
-  port: 8085
+  port: ${SERVER_PORT:8090}
+
+# ---------------------------------------------------------------------------
+# Downstream service base URLs (used by the WebClient-backed integration
+# clients in integration/web).
+# ---------------------------------------------------------------------------
+payment:
+  service:
+    base-url: ${PAYMENT_SERVICE_URL:http://localhost:8087}
+
+ledger:
+  service:
+    base-url: ${LEDGER_SERVICE_URL:http://localhost:8092}
+
+settlement:
+  service:
+    base-url: ${SETTLEMENT_SERVICE_URL:http://localhost:8091}
+
+notification:
+  service:
+    base-url: ${NOTIFICATION_SERVICE_URL:http://localhost:8094}
 
 # ---------------------------------------------------------------------------
 # Deadline monitor (see DeadlineMonitorJob)

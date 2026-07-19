@@ -9,8 +9,17 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 /**
- * Development stub for {@link NotificationClient} that logs merchant
- * notifications instead of dispatching them.
+ * Stub for {@link NotificationClient} that logs merchant notifications
+ * instead of dispatching them.
+ *
+ * <p>notification-service does exist and exposes {@code POST /api/messages},
+ * but that endpoint requires a resolved {@code recipient} address (raw email
+ * or phone) plus a {@code templateKey}/{@code locale} for server-side
+ * rendering. dispute-service only has a merchant id (not a contact address)
+ * and pre-rendered free-text subject/body, so there is no faithful mapping
+ * from this interface's signature onto that endpoint without inventing a
+ * template and fabricating a contact address. This intentionally remains a
+ * logging fallback rather than making a call with made-up data.
  */
 @Component
 public class LoggingNotificationClient implements NotificationClient {

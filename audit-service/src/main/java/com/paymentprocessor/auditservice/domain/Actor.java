@@ -1,15 +1,26 @@
 package com.paymentprocessor.auditservice.domain;
 
+import jakarta.persistence.Column;
+import jakarta.persistence.Embeddable;
+
 /**
  * Who performed the action. Identifiers are opaque references (e.g. {@code idn_...}) —
  * never names, emails or other raw PII. The IP/user-agent are operational metadata
  * captured for security forensics.
  */
+@Embeddable
 public class Actor {
 
+    @Column(name = "actor_type")
     private String type;   // e.g. "merchant_user", "system", "service"
+
+    @Column(name = "actor_id")
     private String id;     // opaque reference, e.g. "idn_..."
+
+    @Column(name = "actor_ip")
     private String ip;
+
+    @Column(name = "actor_ua")
     private String ua;
 
     public Actor() {

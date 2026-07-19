@@ -95,7 +95,7 @@ public class AuditIngestionService {
             record.setHash(hashChain.computeHash(record));
 
             try {
-                records.insert(record);
+                records.saveAndFlush(record);
             } catch (DuplicateKeyException dup) {
                 // Either another writer took our seq, or this eventId already exists.
                 if (StringUtils.hasText(cmd.eventId())) {

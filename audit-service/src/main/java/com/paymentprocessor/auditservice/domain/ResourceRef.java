@@ -1,12 +1,19 @@
 package com.paymentprocessor.auditservice.domain;
 
+import jakarta.persistence.Column;
+import jakarta.persistence.Embeddable;
+
 /**
  * The resource the action was performed on, as an opaque type + id reference
  * (e.g. {@code payout_account} / {@code pa_...}).
  */
+@Embeddable
 public class ResourceRef {
 
+    @Column(name = "resource_type")
     private String type;
+
+    @Column(name = "resource_id")
     private String id;
 
     public ResourceRef() {

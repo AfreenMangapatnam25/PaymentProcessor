@@ -13,7 +13,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.paymentprocessor.fraudservice.document.RiskAssessment;
+import com.paymentprocessor.fraudservice.domain.entity.RiskAssessment;
 import com.paymentprocessor.fraudservice.dto.FraudDecisionResponse;
 import com.paymentprocessor.fraudservice.dto.FraudEvaluationRequest;
 import com.paymentprocessor.fraudservice.dto.RuleHit;

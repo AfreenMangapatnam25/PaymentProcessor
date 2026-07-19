@@ -38,7 +38,7 @@ spring:
         enable.idempotence: true
 
 server:
-  port: ${SERVER_PORT:8085}
+  port: ${SERVER_PORT:8096}
   shutdown: graceful
 
 # ---- ClickHouse: read-only OLAP replica (owns nothing) ----

@@ -22,7 +22,7 @@ spring:
       mode: always
 
 server:
-  port: ${SERVER_PORT:8080}
+  port: ${SERVER_PORT:8087}
 
 management:
   endpoints:
@@ -54,19 +54,26 @@ payment:
     payee-name: ${UPI_PAYEE_NAME:Acme Payments}
     collect-expiry-seconds: 300
   fraud:
-    base-url: ${FRAUD_BASE_URL:http://localhost:9103}
+    base-url: ${FRAUD_SERVICE_URL:http://localhost:8088}
     api-key: ${FRAUD_API_KEY:}
     connect-timeout-ms: 1000
     read-timeout-ms: 2000
     max-retries: 1
     enabled: ${FRAUD_ENABLED:true}
   vault:
-    base-url: ${VAULT_BASE_URL:http://localhost:9104}
+    base-url: ${TOKENIZATION_SERVICE_URL:http://localhost:8084}
     api-key: ${VAULT_API_KEY:}
     connect-timeout-ms: 1000
     read-timeout-ms: 2000
     max-retries: 1
     enabled: ${VAULT_ENABLED:true}
+  limit:
+    base-url: ${LIMIT_SERVICE_URL:http://localhost:8085}
+    api-key: ${LIMIT_API_KEY:}
+    connect-timeout-ms: 1000
+    read-timeout-ms: 5000
+    max-retries: 1
+    enabled: ${LIMIT_ENABLED:true}
   outbox:
     sink-url: ${OUTBOX_SINK_URL:}
     batch-size: 100

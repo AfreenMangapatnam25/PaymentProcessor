@@ -57,6 +57,9 @@ public class PaymentIntent {
     @Column(name = "connector_id")
     private String connectorId;
 
+    @Column(name = "limit_reservation_id")
+    private String limitReservationId;
+
     @Column(name = "authorized_minor")
     private Long authorizedMinor = 0L;
 
@@ -124,6 +127,8 @@ public class PaymentIntent {
     public void setCaptureMethod(String captureMethod) { this.captureMethod = captureMethod; }
     public String getConnectorId() { return connectorId; }
     public void setConnectorId(String connectorId) { this.connectorId = connectorId; }
+    public String getLimitReservationId() { return limitReservationId; }
+    public void setLimitReservationId(String limitReservationId) { this.limitReservationId = limitReservationId; }
     public Long getAuthorizedMinor() { return authorizedMinor; }
     public void setAuthorizedMinor(Long authorizedMinor) { this.authorizedMinor = authorizedMinor; }
     public Long getCapturedMinor() { return capturedMinor; }

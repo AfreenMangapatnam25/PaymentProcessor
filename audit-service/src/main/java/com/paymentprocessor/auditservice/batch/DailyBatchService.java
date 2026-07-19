@@ -140,7 +140,7 @@ public class DailyBatchService {
         batch.setStatus(AuditBatch.Status.SEALING);
         batch.setCreatedAt(Instant.now());
         try {
-            batches.insert(batch);
+            batches.saveAndFlush(batch);
         } catch (DuplicateKeyException race) {
             return batches.findById(batchId).orElseThrow();
         }

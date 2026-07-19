@@ -3,13 +3,16 @@ package com.paymentprocessor.settlementservice.integration.ledger;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 /**
- * In-process stand-in for the Ledger Service. Generates a journal id and logs
- * the posting. Replace with a real double-entry ledger integration in prod.
+ * In-process stand-in for the Ledger Service, used only in the {@code dev}
+ * profile where no real ledger-service is running. {@link WebClientLedgerClient}
+ * is the real implementation used everywhere else.
  */
 @Component
+@Profile("dev")
 public class SimulatedLedgerClient implements LedgerClient {
 
     private static final Logger log = LoggerFactory.getLogger(SimulatedLedgerClient.class);

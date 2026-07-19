@@ -1,9 +1,12 @@
 package com.paymentprocessor.fraudservice.repository;
 
-import org.springframework.data.mongodb.repository.MongoRepository;
+import java.util.UUID;
+
+import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
-import com.paymentprocessor.fraudservice.document.Device;
+
+import com.paymentprocessor.fraudservice.domain.entity.Device;
 
 @Repository
-public interface DeviceRepository extends MongoRepository<Device, String> {
+public interface DeviceRepository extends JpaRepository<Device, UUID> {
 }

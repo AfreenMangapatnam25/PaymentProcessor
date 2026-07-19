@@ -23,6 +23,8 @@ import org.springframework.transaction.annotation.Transactional;
 import com.paymentprocessor.paymentservice.connector.ConnectorRegistry;
 import com.paymentprocessor.paymentservice.connector.FraudClient;
 import com.paymentprocessor.paymentservice.connector.FraudDecision;
+import com.paymentprocessor.paymentservice.connector.LimitClient;
+import com.paymentprocessor.paymentservice.connector.LimitDecisionResult;
 import com.paymentprocessor.paymentservice.connector.model.AuthorizeCommand;
 import com.paymentprocessor.paymentservice.connector.model.AuthorizeResult;
 import com.paymentprocessor.paymentservice.connector.model.CaptureCommand;
@@ -100,6 +102,7 @@ public class PaymentOrchestrationService {
 
     private final ConnectorRegistry connectors;
     private final FraudClient fraudClient;
+    private final LimitClient limitClient;
     private final PaymentStateMachine stateMachine;
     private final OutboxWriter outbox;
     private final IdempotencyService idempotency;
@@ -121,6 +124,7 @@ public class PaymentOrchestrationService {
                                        OutboxRepository outboxRepo,
                                        ConnectorRegistry connectors,
                                        FraudClient fraudClient,
+                                       LimitClient limitClient,
                                        PaymentStateMachine stateMachine,
                                        OutboxWriter outbox,
                                        IdempotencyService idempotency,
@@ -135,6 +139,7 @@ public class PaymentOrchestrationService {
         this.outboxRepo = outboxRepo;
         this.connectors = connectors;
         this.fraudClient = fraudClient;
+        this.limitClient = limitClient;
         this.stateMachine = stateMachine;
         this.outbox = outbox;
         this.idempotency = idempotency;
@@ -206,11 +211,26 @@ public class PaymentOrchestrationService {
     }
 
     private PaymentIntent authorizeCard(PaymentIntent intent) {
+        LimitDecisionResult limit = limitClient.reserve(intent.getId(), intent.getMerchantId(),
+                intent.getCustomerId(), intent.getAmountMinor(), intent.getCurrency());
+        if (!limit.approved()) {
+            PaymentAttempt limitAttempt = newAttempt(intent, connectors.card().connectorId());
+            limitAttempt.setOutcome(AttemptOutcome.HARD_DECLINE.name());
+            limitAttempt.setMappedDeclineCode(limit.serviceUnavailable() ? "LIMIT_SERVICE_UNAVAILABLE" : "LIMIT_EXCEEDED");
+            attemptRepo.save(limitAttempt);
+            fail(intent, limit.serviceUnavailable() ? "LIMIT_SERVICE_UNAVAILABLE" : "LIMIT_DECLINED",
+                    limit.serviceUnavailable() ? "LIMIT_SERVICE_UNAVAILABLE" : "LIMIT_EXCEEDED");
+            return intent;
+        }
+        intent.setLimitReservationId(limit.reservationId());
+        intentRepo.save(intent);
+
         FraudDecision fraud = fraudClient.evaluate(intent.getId(), intent.getMerchantId(),
                 intent.getAmountMinor(), intent.getCurrency(), intent.getInstrumentToken());
 
         PaymentAttempt attempt = newAttempt(intent, connectors.card().connectorId());
         if (!fraud.approved()) {
+            releaseLimitReservation(intent, "FRAUD_BLOCK");
             attempt.setOutcome(AttemptOutcome.HARD_DECLINE.name());
             attempt.setMappedDeclineCode("FRAUD_BLOCK");
             attemptRepo.save(attempt);
@@ -250,7 +270,10 @@ public class PaymentOrchestrationService {
                 intent.setSubStatus("3DS_PENDING");
                 intentRepo.save(intent);
             }
-            default -> fail(intent, mapSubStatus(r), r.mappedDeclineCode());
+            default -> {
+                releaseLimitReservation(intent, "AUTH_DECLINED");
+                fail(intent, mapSubStatus(r), r.mappedDeclineCode());
+            }
         }
         return intent;
     }
@@ -312,6 +335,7 @@ public class PaymentOrchestrationService {
             stateMachine.transition(intent, PaymentStatus.CAPTURED, null);
             intentRepo.save(intent);
             outbox.append(intent.getId(), EVT_CAPTURED, basePayload(intent));
+            commitLimitReservation(intent);
         } else {
             stateMachine.transition(intent, PaymentStatus.PARTIALLY_CAPTURED, null);
             intentRepo.save(intent);
@@ -351,6 +375,7 @@ public class PaymentOrchestrationService {
         stateMachine.transition(intent, PaymentStatus.CANCELLED, null);
         intentRepo.save(intent);
         outbox.append(intent.getId(), EVT_CANCELLED, basePayload(intent));
+        releaseLimitReservation(intent, "VOIDED");
         return intent;
     }
 
@@ -619,6 +644,22 @@ public class PaymentOrchestrationService {
         Map<String, Object> payload = basePayload(intent);
         payload.put("declineCode", code);
         outbox.append(intent.getId(), EVT_FAILED, payload);
+    }
+
+    private void releaseLimitReservation(PaymentIntent intent, String reason) {
+        String reservationId = intent.getLimitReservationId();
+        if (reservationId == null || reservationId.isBlank()) {
+            return;
+        }
+        limitClient.release(reservationId, reason);
+    }
+
+    private void commitLimitReservation(PaymentIntent intent) {
+        String reservationId = intent.getLimitReservationId();
+        if (reservationId == null || reservationId.isBlank()) {
+            return;
+        }
+        limitClient.commit(reservationId, intent.getCapturedMinor());
     }
 
     private PaymentAttempt newAttempt(PaymentIntent intent, String connectorId) {

@@ -4,14 +4,18 @@ import com.paymentprocessor.settlementservice.enums.ScheduleType;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 /**
- * In-process stand-in for the Merchant Service. Returns a deterministic default
- * profile for any merchant and lets tests/demos override specific merchants via
- * {@link #register(MerchantSettlementProfile)}.
+ * In-process stand-in for the Merchant Service, used only in the {@code dev}
+ * profile where no real merchant-service is running. Returns a deterministic
+ * default profile for any merchant and lets tests/demos override specific
+ * merchants via {@link #register(MerchantSettlementProfile)}.
+ * {@link WebClientMerchantClient} is the real implementation used elsewhere.
  */
 @Component
+@Profile("dev")
 public class SimulatedMerchantClient implements MerchantClient {
 
     private final ConcurrentMap<String, MerchantSettlementProfile> profiles = new ConcurrentHashMap<>();

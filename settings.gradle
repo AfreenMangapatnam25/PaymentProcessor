@@ -6,10 +6,8 @@ include(
     'user-service',
     'merchant-service',
     'payment-service',
-    'connector-service',
     'fraud-service',
     'ledger-service',
-    'pricing-service',
     'settlement-service',
     'clearing-service',
     'reconciliation-service',
@@ -19,5 +17,5 @@ include(
     'tokenization-service',
     'limit-service',
     'authorization-service',
-    'analytics'
+    'reporting-service'
 )
