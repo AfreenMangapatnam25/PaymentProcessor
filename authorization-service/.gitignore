@@ -1,0 +1,23 @@
+# Build output
+build/
+!gradle/wrapper/gradle-wrapper.jar
+.gradle/
+out/
+bin/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.settings/
+.classpath
+.project
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets / local env
+*.env
+.env
+application-secret.yml
