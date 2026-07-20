@@ -1,0 +1,16 @@
+# Shared dev/staging cluster. Real KMS, real broker, Flyway clean disabled.
+spring:
+  jpa:
+    show-sql: false
+  flyway:
+    clean-disabled: true
+
+logging:
+  level:
+    com.paymentprocessor.userservice: DEBUG
+    root: INFO
+
+app:
+  crypto:
+    kms:
+      provider: ${KMS_PROVIDER:aws-kms}
