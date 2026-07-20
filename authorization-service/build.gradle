@@ -1,0 +1,88 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.3.2'
+    id 'io.spring.dependency-management' version '1.1.6'
+}
+
+group = 'com.paymentprocessor'
+version = '1.0.0'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+ext {
+    springCloudVersion = '2023.0.3'
+    resilience4jVersion = '2.2.0'
+    stripeVersion = '28.2.0'
+    springdocVersion = '2.6.0'
+    jjwtVersion = '0.12.6'
+}
+
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}"
+    }
+}
+
+dependencies {
+    // Web / API
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'org.springframework.boot:spring-boot-starter-aop'
+
+    // Persistence
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.flywaydb:flyway-core'
+    implementation 'org.flywaydb:flyway-database-postgresql'
+    runtimeOnly 'org.postgresql:postgresql'
+
+    // Caching (permission cache) - Caffeine
+    implementation 'org.springframework.boot:spring-boot-starter-cache'
+    implementation 'com.github.ben-manes.caffeine:caffeine'
+
+    // Service discovery
+    implementation 'org.springframework.cloud:spring-cloud-starter-netflix-eureka-client'
+
+    // Messaging / events
+    implementation 'org.springframework.kafka:spring-kafka'
+
+    // Reactive utilities
+    implementation 'io.projectreactor:reactor-core'
+
+    // Resilience (retry, circuit breaker, time limiter, bulkhead)
+    implementation "io.github.resilience4j:resilience4j-spring-boot3:${resilience4jVersion}"
+
+    // Payment gateway SDK
+    implementation "com.stripe:stripe-java:${stripeVersion}"
+
+    // JWT parsing (identity claim extraction)
+    implementation "io.jsonwebtoken:jjwt-api:${jjwtVersion}"
+    runtimeOnly "io.jsonwebtoken:jjwt-impl:${jjwtVersion}"
+    runtimeOnly "io.jsonwebtoken:jjwt-jackson:${jjwtVersion}"
+
+    // Metrics -> Prometheus
+    runtimeOnly 'io.micrometer:micrometer-registry-prometheus'
+
+    // API documentation
+    implementation "org.springdoc:springdoc-openapi-starter-webmvc-ui:${springdocVersion}"
+
+    // Boilerplate reduction
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+
+    // Test
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.kafka:spring-kafka-test'
+}
+
+tasks.named('bootJar') {
+    archiveFileName = 'authorization-service.jar'
+}

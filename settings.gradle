@@ -1,21 +1,21 @@
 rootProject.name = 'payment-processor-platform'
 
 include(
+    'gateway-service',
+    'authentication-service',
     'user-service',
     'merchant-service',
     'payment-service',
-    'transaction-service',
-    'ledger-service',
-    'account-service',
-    'card-service',
     'fraud-service',
+    'ledger-service',
     'settlement-service',
     'clearing-service',
-    'notification-service',
     'reconciliation-service',
-    'api-gateway-service',
-    'authentication-service',
-    'discovery-service',
-    'reporting-service',
-    'audit-service'
+    'dispute-service',
+    'notification-service',
+    'audit-service',
+    'tokenization-service',
+    'limit-service',
+    'authorization-service',
+    'reporting-service'
 )

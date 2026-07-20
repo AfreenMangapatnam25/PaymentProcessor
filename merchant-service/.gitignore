@@ -1,0 +1,20 @@
+# Build
+build/
+bin/
+.gradle/
+!gradle/wrapper/gradle-wrapper.jar
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.settings/
+.classpath
+.project
+
+# OS
+.DS_Store
+
+# Secrets / local env
+*.env
+application-local.yml

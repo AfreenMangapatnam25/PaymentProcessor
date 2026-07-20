@@ -1,0 +1,18 @@
+# Build output
+/build/
+/bin/
+!gradle/wrapper/gradle-wrapper.jar
+.gradle/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.settings/
+.classpath
+.project
+
+# Secrets / local env
+.env
+*.pem
+*.p8

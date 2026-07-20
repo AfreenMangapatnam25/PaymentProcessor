@@ -1,0 +1,78 @@
+spring:
+  application:
+    name: merchant-service
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/merchant}
+    username: ${DB_USERNAME:merchant}
+    password: ${DB_PASSWORD:merchant}
+    hikari:
+      maximum-pool-size: ${DB_POOL_MAX:20}
+      minimum-idle: ${DB_POOL_MIN:5}
+      connection-timeout: 30000
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+        format_sql: false
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    locations: classpath:db/migration
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      acks: all
+      retries: 10
+      properties:
+        enable.idempotence: true
+        max.in.flight.requests.per.connection: 5
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+
+server:
+  port: ${SERVER_PORT:8083}
+  shutdown: graceful
+  error:
+    include-message: never
+    include-stacktrace: never
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: when_authorized
+  metrics:
+    tags:
+      application: merchant-service
+
+# Application-specific configuration
+merchant-service:
+  security:
+    # 256-bit AES key, Base64-encoded. MUST be overridden per environment via env var.
+    encryption-key: ${MERCHANT_ENCRYPTION_KEY:kQ9v2mZ4bXcR7tYuIoPaSdFgHjKlZxCvBnMqWeRtYuI=}
+    # Platform/internal admin credential for onboarding, lifecycle and service-to-service callbacks.
+    admin-api-key: ${MERCHANT_ADMIN_API_KEY:admin_local_dev_key_change_me}
+  events:
+    topic-prefix: ${EVENT_TOPIC_PREFIX:merchant}
+  outbox:
+    poll-interval-ms: ${OUTBOX_POLL_INTERVAL_MS:2000}
+    batch-size: ${OUTBOX_BATCH_SIZE:100}
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+  api-docs:
+    path: /v3/api-docs
+
+logging:
+  level:
+    com.paymentprocessor.merchantservice: ${APP_LOG_LEVEL:INFO}

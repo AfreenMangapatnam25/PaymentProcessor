@@ -1,0 +1,195 @@
+{
+  "groups": [
+    {
+      "name": "audit",
+      "type": "com.paymentprocessor.auditservice.config.AuditProperties",
+      "sourceType": "com.paymentprocessor.auditservice.config.AuditProperties"
+    },
+    {
+      "name": "audit.anchor",
+      "type": "com.paymentprocessor.auditservice.config.AuditProperties$Anchor",
+      "sourceType": "com.paymentprocessor.auditservice.config.AuditProperties",
+      "sourceMethod": "getAnchor()"
+    },
+    {
+      "name": "audit.batch",
+      "type": "com.paymentprocessor.auditservice.config.AuditProperties$Batch",
+      "sourceType": "com.paymentprocessor.auditservice.config.AuditProperties",
+      "sourceMethod": "getBatch()"
+    },
+    {
+      "name": "audit.chain",
+      "type": "com.paymentprocessor.auditservice.config.AuditProperties$Chain",
+      "sourceType": "com.paymentprocessor.auditservice.config.AuditProperties",
+      "sourceMethod": "getChain()"
+    },
+    {
+      "name": "audit.ingestion",
+      "type": "com.paymentprocessor.auditservice.config.AuditProperties$Ingestion",
+      "sourceType": "com.paymentprocessor.auditservice.config.AuditProperties",
+      "sourceMethod": "getIngestion()"
+    },
+    {
+      "name": "audit.kafka",
+      "type": "com.paymentprocessor.auditservice.config.AuditProperties$Kafka",
+      "sourceType": "com.paymentprocessor.auditservice.config.AuditProperties",
+      "sourceMethod": "getKafka()"
+    },
+    {
+      "name": "audit.s3",
+      "type": "com.paymentprocessor.auditservice.config.AuditProperties$S3",
+      "sourceType": "com.paymentprocessor.auditservice.config.AuditProperties",
+      "sourceMethod": "getS3()"
+    },
+    {
+      "name": "audit.security",
+      "type": "com.paymentprocessor.auditservice.config.AuditProperties$Security",
+      "sourceType": "com.paymentprocessor.auditservice.config.AuditProperties",
+      "sourceMethod": "getSecurity()"
+    },
+    {
+      "name": "audit.signing",
+      "type": "com.paymentprocessor.auditservice.config.AuditProperties$Signing",
+      "sourceType": "com.paymentprocessor.auditservice.config.AuditProperties",
+      "sourceMethod": "getSigning()"
+    }
+  ],
+  "properties": [
+    {
+      "name": "audit.anchor.endpoint",
+      "type": "java.lang.String",
+      "sourceType": "com.paymentprocessor.auditservice.config.AuditProperties$Anchor",
+      "defaultValue": ""
+    },
+    {
+      "name": "audit.anchor.mode",
+      "type": "java.lang.String",
+      "description": "\"log\" or \"http\".",
+      "sourceType": "com.paymentprocessor.auditservice.config.AuditProperties$Anchor",
+      "defaultValue": "log"
+    },
+    {
+      "name": "audit.batch.cron",
+      "type": "java.lang.String",
+      "sourceType": "com.paymentprocessor.auditservice.config.AuditProperties$Batch",
+      "defaultValue": "0 30 0 * * *"
+    },
+    {
+      "name": "audit.batch.enabled",
+      "type": "java.lang.Boolean",
+      "sourceType": "com.paymentprocessor.auditservice.config.AuditProperties$Batch",
+      "defaultValue": true
+    },
+    {
+      "name": "audit.batch.retention-years",
+      "type": "java.lang.Integer",
+      "sourceType": "com.paymentprocessor.auditservice.config.AuditProperties$Batch",
+      "defaultValue": 10
+    },
+    {
+      "name": "audit.batch.zone",
+      "type": "java.lang.String",
+      "sourceType": "com.paymentprocessor.auditservice.config.AuditProperties$Batch",
+      "defaultValue": "UTC"
+    },
+    {
+      "name": "audit.chain.genesis-hash",
+      "type": "java.lang.String",
+      "description": "prev_hash of the first record in the chain.",
+      "sourceType": "com.paymentprocessor.auditservice.config.AuditProperties$Chain",
+      "defaultValue": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "name": "audit.ingestion.max-retries-on-contention",
+      "type": "java.lang.Integer",
+      "sourceType": "com.paymentprocessor.auditservice.config.AuditProperties$Ingestion",
+      "defaultValue": 8
+    },
+    {
+      "name": "audit.ingestion.pii-guard-enabled",
+      "type": "java.lang.Boolean",
+      "sourceType": "com.paymentprocessor.auditservice.config.AuditProperties$Ingestion",
+      "defaultValue": true
+    },
+    {
+      "name": "audit.kafka.dlt-topic",
+      "type": "java.lang.String",
+      "sourceType": "com.paymentprocessor.auditservice.config.AuditProperties$Kafka",
+      "defaultValue": "audit.events.DLT"
+    },
+    {
+      "name": "audit.kafka.enabled",
+      "type": "java.lang.Boolean",
+      "sourceType": "com.paymentprocessor.auditservice.config.AuditProperties$Kafka",
+      "defaultValue": true
+    },
+    {
+      "name": "audit.kafka.topic",
+      "type": "java.lang.String",
+      "sourceType": "com.paymentprocessor.auditservice.config.AuditProperties$Kafka",
+      "defaultValue": "audit.events"
+    },
+    {
+      "name": "audit.s3.bucket",
+      "type": "java.lang.String",
+      "sourceType": "com.paymentprocessor.auditservice.config.AuditProperties$S3",
+      "defaultValue": "payment-processor-audit-legal"
+    },
+    {
+      "name": "audit.s3.enabled",
+      "type": "java.lang.Boolean",
+      "sourceType": "com.paymentprocessor.auditservice.config.AuditProperties$S3",
+      "defaultValue": true
+    },
+    {
+      "name": "audit.s3.endpoint",
+      "type": "java.lang.String",
+      "sourceType": "com.paymentprocessor.auditservice.config.AuditProperties$S3",
+      "defaultValue": ""
+    },
+    {
+      "name": "audit.s3.key-prefix",
+      "type": "java.lang.String",
+      "sourceType": "com.paymentprocessor.auditservice.config.AuditProperties$S3",
+      "defaultValue": "audit-batches"
+    },
+    {
+      "name": "audit.s3.object-lock-mode",
+      "type": "java.lang.String",
+      "sourceType": "com.paymentprocessor.auditservice.config.AuditProperties$S3",
+      "defaultValue": "COMPLIANCE"
+    },
+    {
+      "name": "audit.s3.region",
+      "type": "java.lang.String",
+      "sourceType": "com.paymentprocessor.auditservice.config.AuditProperties$S3",
+      "defaultValue": "us-east-1"
+    },
+    {
+      "name": "audit.security.api-keys",
+      "type": "java.util.List<java.lang.String>",
+      "description": "Accepted internal API keys presented via the X-Api-Key header.",
+      "sourceType": "com.paymentprocessor.auditservice.config.AuditProperties$Security"
+    },
+    {
+      "name": "audit.security.enabled",
+      "type": "java.lang.Boolean",
+      "description": "When false, the API-key filter is disabled (local\/dev only).",
+      "sourceType": "com.paymentprocessor.auditservice.config.AuditProperties$Security",
+      "defaultValue": true
+    },
+    {
+      "name": "audit.signing.key-id",
+      "type": "java.lang.String",
+      "sourceType": "com.paymentprocessor.auditservice.config.AuditProperties$Signing",
+      "defaultValue": "audit-batch-signer-v1"
+    },
+    {
+      "name": "audit.signing.private-key-pkcs8",
+      "type": "java.lang.String",
+      "sourceType": "com.paymentprocessor.auditservice.config.AuditProperties$Signing",
+      "defaultValue": ""
+    }
+  ],
+  "hints": []
+}

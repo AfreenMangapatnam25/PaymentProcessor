@@ -1,0 +1,94 @@
+spring:
+  application:
+    name: analytics
+  # ---- Postgres: operational job-metadata store (this service DOES own this) ----
+  datasource:
+    url: ${POSTGRES_URL:jdbc:postgresql://localhost:5432/analytics}
+    username: ${POSTGRES_USER:analytics}
+    password: ${POSTGRES_PASSWORD:analytics}
+    hikari:
+      pool-name: analytics-jobs
+      maximum-pool-size: 10
+      minimum-idle: 2
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate.jdbc.time_zone: UTC
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  mail:
+    host: ${SMTP_HOST:localhost}
+    port: ${SMTP_PORT:1025}
+    username: ${SMTP_USER:}
+    password: ${SMTP_PASSWORD:}
+    properties:
+      mail.smtp.auth: ${SMTP_AUTH:false}
+      mail.smtp.starttls.enable: ${SMTP_STARTTLS:false}
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+      retries: 5
+      properties:
+        enable.idempotence: true
+
+server:
+  port: ${SERVER_PORT:8096}
+  shutdown: graceful
+
+# ---- ClickHouse: read-only OLAP replica (owns nothing) ----
+analytics:
+  clickhouse:
+    url: ${CLICKHOUSE_URL:jdbc:ch://localhost:8123/analytics}
+    username: ${CLICKHOUSE_USER:default}
+    password: ${CLICKHOUSE_PASSWORD:}
+    max-pool-size: 8
+    query-timeout-seconds: 60
+    max-result-rows: 1000000
+  storage:
+    backend: ${STORAGE_BACKEND:local}          # local | s3
+    local-dir: ${STORAGE_LOCAL_DIR:/tmp/analytics-reports}
+    s3:
+      bucket: ${STORAGE_S3_BUCKET:analytics-reports}
+      region: ${AWS_REGION:us-east-1}
+      endpoint: ${STORAGE_S3_ENDPOINT:}         # set for MinIO; empty for real AWS
+      presign-ttl-minutes: 60
+  reports:
+    executor:
+      core-pool-size: 4
+      max-pool-size: 8
+      queue-capacity: 200
+    retention-days: 30
+    max-concurrent-per-merchant: 5
+  notifications:
+    kafka-topic: ${REPORT_EVENTS_TOPIC:report.completed}
+    email:
+      enabled: ${EMAIL_ENABLED:true}
+      from: ${EMAIL_FROM:reports@paymentprocessor.com}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when_authorized
+      probes:
+        enabled: true
+  health:
+    mail:
+      enabled: false
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+
+logging:
+  level:
+    com.paymentprocessor.analytics: INFO

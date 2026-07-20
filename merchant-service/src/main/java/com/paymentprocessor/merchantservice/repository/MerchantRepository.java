@@ -1,0 +1,17 @@
+package com.paymentprocessor.merchantservice.repository;
+
+import com.paymentprocessor.merchantservice.entity.*;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
+@Repository
+public interface MerchantRepository extends JpaRepository<Merchant, UUID> {
+    Optional<Merchant> findByMerchantReference(String merchantReference);
+    boolean existsByMerchantReference(String merchantReference);
+    boolean existsByRegistrationNumberIgnoreCase(String registrationNumber);
+    List<Merchant> findByOwnerUserId(UUID ownerUserId);
+}

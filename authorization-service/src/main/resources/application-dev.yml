@@ -1,0 +1,56 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://db-dev.internal:5432/authorization_dev
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka-dev.internal:9092}
+
+server:
+  port: 8086
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://eureka-dev.internal:8761/eureka/
+    register-with-eureka: true
+    fetch-registry: true
+  instance:
+    hostname: authorization-service-dev
+
+authorization:
+  timeout-seconds: 30
+  retry-attempts: 3
+  avs-required: true
+  three-ds-enabled: true
+
+gateway:
+  provider: stripe
+  stripe:
+    api-key: ${STRIPE_API_KEY:}
+
+security:
+  jwt:
+    verify-signature: true
+    hmac-secret: ${JWT_HMAC_SECRET:}
+    public-key: ${JWT_PUBLIC_KEY:}
+    issuer: ${JWT_ISSUER:}
+
+logging:
+  level:
+    root: WARN
+    com.paymentprocessor: INFO
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,prometheus

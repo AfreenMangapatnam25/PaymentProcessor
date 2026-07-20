@@ -1,0 +1,4 @@
+source,externalReference,amount,currency,transactionDate,merchantId,cardLast4,transactionStatus
+EXTERNAL,TXN-1001,120.50,USD,2026-07-18,MERCH-01,4242,captured
+EXTERNAL,TXN-9999,42.00,USD,2026-07-18,MERCH-07,1111,captured
+EXTERNAL,TXN-1003,300.00,USD,2026-07-17,MERCH-02,0005,captured

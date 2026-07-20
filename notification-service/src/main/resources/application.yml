@@ -1,0 +1,81 @@
+spring:
+  application:
+    name: notification-service
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/notification_service}
+    username: ${DB_USER:notification_service}
+    password: ${DB_PASSWORD:}
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:20}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      group-id: ${KAFKA_GROUP_ID:notification-service}
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    listener:
+      ack-mode: MANUAL
+
+server:
+  port: ${SERVER_PORT:8094}
+
+# --- Inbound platform events consumed from Kafka -----------------------------
+events:
+  kafka:
+    enabled: ${EVENTS_KAFKA_ENABLED:true}
+    merchant-events-topic: ${MERCHANT_EVENTS_TOPIC:merchant.events}
+
+# --- Dispatcher (see DispatcherProperties) ----------------------------------
+notification:
+  dispatcher:
+    batch-size: 200
+    poll-interval: 2s
+    claim-visibility: 2m
+    request-timeout: 10s
+    backoff-schedule: 5s,30s,2m,10m,1h,6h,24h
+    auto-disable-threshold: 15
+
+  # --- Retention (see RetentionProperties) ------------------------------------
+  retention:
+    retention-days: 90
+    months-ahead-to-create: 2
+
+  # --- Internal auth (see SecurityProperties) ---------------------------------
+  security:
+    internal-api-key: ${INTERNAL_API_KEY:}
+
+  # --- Outbound providers (see ProviderProperties) ----------------------------
+  providers:
+    sendgrid:
+      api-key: ${SENDGRID_API_KEY:}
+      from-email: ${SENDGRID_FROM_EMAIL:notifications@example.com}
+      from-name: ${SENDGRID_FROM_NAME:Notifications}
+    twilio:
+      account-sid: ${TWILIO_ACCOUNT_SID:}
+      auth-token: ${TWILIO_AUTH_TOKEN:}
+      from-number: ${TWILIO_FROM_NUMBER:}
+
+  # KMS-backed webhook signing secrets. Local/dev default resolves secret_ref
+  # via env vars (see EnvSecretResolver); point at real KMS in production.
+  secrets:
+    provider: ${SECRETS_PROVIDER:env}
+
+# --- Ops ---------------------------------------------------------------------
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      probes:
+        enabled: true

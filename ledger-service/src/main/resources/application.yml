@@ -1,0 +1,57 @@
+spring:
+  application:
+    name: ledger-service
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:local}
+  jpa:
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  jackson:
+    default-property-inclusion: non_null
+    serialization:
+      write-dates-as-timestamps: false
+  sql:
+    init:
+      mode: never
+
+server:
+  port: ${SERVER_PORT:8092}
+  error:
+    include-message: always
+    include-binding-errors: always
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when_authorized
+      probes:
+        enabled: true
+  info:
+    env:
+      enabled: true
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+  api-docs:
+    path: /v3/api-docs
+
+ledger:
+  reversal:
+    approval-threshold-minor: 100000   # entries above this (in minor units) require an approver
+  outbox:
+    poll-interval-ms: 2000
+    batch-size: 100
+
+info:
+  app:
+    name: ledger-service
+    description: Immutable double-entry financial book of record
+    version: 1.0.0

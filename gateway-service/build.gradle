@@ -1,0 +1,61 @@
+plugins {
+    id 'org.springframework.boot' version '3.3.2'
+    id 'io.spring.dependency-management' version '1.1.6'
+    id 'java'
+}
+
+group = 'com.paymentprocessor'
+version = '1.0.0'
+
+java {
+    // Spring Boot 3.x requires Java 17+
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+ext {
+    // Spring Cloud 2023.0.x is the release train compatible with Spring Boot 3.3.x
+    springCloudVersion = '2023.0.3'
+}
+
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}"
+    }
+}
+
+dependencies {
+    // --- Core gateway (reactive / WebFlux) ---
+    implementation 'org.springframework.cloud:spring-cloud-starter-gateway'
+
+    // --- Security: validate JWTs locally against a cached JWKS ---
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
+
+    // --- Redis-backed rate limiting (reactive) ---
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis-reactive'
+
+    // --- Resilience: circuit breakers, timeouts, fallbacks ---
+    implementation 'org.springframework.cloud:spring-cloud-starter-circuitbreaker-reactor-resilience4j'
+
+    // --- Bean validation for config binding ---
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+
+    // --- Observability: health, metrics, tracing ---
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'io.micrometer:micrometer-registry-prometheus'
+    implementation 'io.micrometer:micrometer-tracing-bridge-brave'
+    implementation 'io.zipkin.reporter2:zipkin-reporter-brave'
+
+    // --- Config metadata generation for @ConfigurationProperties ---
+    annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}
