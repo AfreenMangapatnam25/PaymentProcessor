@@ -118,7 +118,7 @@ spring:
         - id: user-service
           uri: ${USER_SERVICE_URI:http://user-service:8080}
           predicates:
-            - Path=/api/v1/users/**
+            - Path=/api/v1/users/**,/api/v1/customers/**,/api/v1/addresses/**,/api/v1/consents/**
           filters:
             - name: RequestRateLimiter
               args:
@@ -381,6 +381,31 @@ spring:
                   factor: 2
 
         # ---------------- Audit service ----------------
+        # ---------------- Notification service ----------------
+        - id: notification-service
+          uri: ${NOTIFICATION_SERVICE_URI:http://notification-service:8080}
+          predicates:
+            - Path=/api/events/**,/api/messages/**,/api/templates/**,/api/suppressions/**,/api/webhook-deliveries/**,/api/webhook-endpoints/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@apiKeyResolver}"
+                redis-rate-limiter.replenishRate: ${NOTIFICATION_RL_RATE:30}
+                redis-rate-limiter.burstCapacity: ${NOTIFICATION_RL_BURST:60}
+            - name: CircuitBreaker
+              args:
+                name: notificationCircuitBreaker
+                fallbackUri: forward:/fallback/notification-service
+            - name: Retry
+              args:
+                retries: 2
+                methods: GET
+                series: SERVER_ERROR
+                backoff:
+                  firstBackoff: 50ms
+                  maxBackoff: 500ms
+                  factor: 2
+
         - id: audit-service
           uri: ${AUDIT_SERVICE_URI_ROUTE:http://audit-service:8080}
           predicates:

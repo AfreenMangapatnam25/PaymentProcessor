@@ -33,6 +33,7 @@ non-terminal state able to move to `FAILED`. The state machine is enforced in
 `ClearingBatch.transitionTo`.
 
 Reliability building blocks:
+
 - **Idempotent ingestion** keyed on `sourceTransactionId` (unique constraint).
 - **Transactional outbox** (`outbox_event`) drained to Kafka by `OutboxPublisher`,
   so events commit atomically with state changes and survive restarts.
@@ -96,16 +97,16 @@ curl -X POST http://localhost:8080/api/v1/clearing/batches/{id}/acknowledgements
 
 ## Configuration (env vars)
 
-| Variable | Default | Purpose |
-|----------|---------|---------|
-| `DB_URL` / `DB_USERNAME` / `DB_PASSWORD` | local Postgres | Datasource |
-| `KAFKA_BOOTSTRAP_SERVERS` | `localhost:9092` | Kafka brokers |
-| `CLEARING_TRANSPORT_MOCK` | `true` | `false` enables the real REST transport |
-| `CLEARING_TRANSPORT_BASE_URL` / `_SUBMIT_PATH` / `_API_KEY` | — | External clearing endpoint |
-| `CLEARING_STORAGE_DIR` | `./clearing-files` | Where generated files are written |
-| `CLEARING_SUBMISSION_MAX_ATTEMPTS` | `5` | Retry cap before a batch fails |
-| `CLEARING_EVENTS_TOPIC` | `clearing.events.v1` | Kafka topic for domain events |
-| `CLEARING_API_KEY_ENABLED` / `CLEARING_API_KEY` | `false` | Optional API-key gate |
+| Variable                                                    | Default              | Purpose                                 |
+|-------------------------------------------------------------|----------------------|-----------------------------------------|
+| `DB_URL` / `DB_USERNAME` / `DB_PASSWORD`                    | local Postgres       | Datasource                              |
+| `KAFKA_BOOTSTRAP_SERVERS`                                   | `localhost:9092`     | Kafka brokers                           |
+| `CLEARING_TRANSPORT_MOCK`                                   | `true`               | `false` enables the real REST transport |
+| `CLEARING_TRANSPORT_BASE_URL` / `_SUBMIT_PATH` / `_API_KEY` | —                    | External clearing endpoint              |
+| `CLEARING_STORAGE_DIR`                                      | `./clearing-files`   | Where generated files are written       |
+| `CLEARING_SUBMISSION_MAX_ATTEMPTS`                          | `5`                  | Retry cap before a batch fails          |
+| `CLEARING_EVENTS_TOPIC`                                     | `clearing.events.v1` | Kafka topic for domain events           |
+| `CLEARING_API_KEY_ENABLED` / `CLEARING_API_KEY`             | `false`              | Optional API-key gate                   |
 
 Switch to the real transport with `CLEARING_TRANSPORT_MOCK=false` and set the
 base URL / submit path / API key for the external clearing application.
@@ -130,4 +131,5 @@ against a migrated database to detect entity/schema drift.
   `git rm` the `entity/` and `controller/` folders and the
   `FileRecord*/NetworkFile*/NetworkCalendar*/OutboundBatch*/Presentment*`
   classes under `repository/` and `service/`.
+
 ```

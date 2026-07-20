@@ -27,6 +27,15 @@ account balances, and publishes domain events for downstream services.
   relayed by a background publisher (at-least-once, broker-agnostic).
 - **Money is integer-exact** — all amounts are **minor units** (e.g. cents);
   there is no floating point in the accounting path.
+- **Real live caller: settlement-service** — as of the settlement-service
+  WebClient overhaul, `POST /api/v1/journals` is called for real (no longer a
+  simulation) by settlement-service's `WebClientLedgerClient` for every
+  settlement event: captures, reserve holds/releases, payouts/returns,
+  reversals and adjustments. It posts against a deterministic set of
+  merchant/platform accounts (see settlement-service's README) that must be
+  pre-provisioned here via `POST /api/v1/accounts` — this service does not
+  create them on the fly. dispute-service also calls `POST /api/v1/journals`
+  and `POST /api/v1/journals/{id}/reverse` directly.
 
 ## Tech stack
 
@@ -48,12 +57,12 @@ gradle bootRun
 gradle bootJar && java -jar build/libs/ledger-service-1.0.0.jar
 ```
 
-Then open:
+Then open (default port is **8092** — see `server.port: ${SERVER_PORT:8092}`):
 
-- Swagger UI … http://localhost:8080/swagger-ui.html
-- OpenAPI ……… http://localhost:8080/v3/api-docs
-- Health ………… http://localhost:8080/actuator/health
-- H2 console … http://localhost:8080/h2-console (JDBC URL `jdbc:h2:mem:ledger`)
+- Swagger UI … http://localhost:8092/swagger-ui.html
+- OpenAPI ……… http://localhost:8092/v3/api-docs
+- Health ………… http://localhost:8092/actuator/health
+- H2 console … http://localhost:8092/h2-console (JDBC URL `jdbc:h2:mem:ledger`)
 
 ### Option B — production-like (PostgreSQL + Flyway) via Docker
 
@@ -66,14 +75,14 @@ Flyway migrations in `src/main/resources/db/migration`.
 
 ### Configuration
 
-| Variable | Default | Purpose |
-|----------|---------|---------|
-| `SPRING_PROFILES_ACTIVE` | `local` | `local` (H2) or `prod` (Postgres) |
-| `DB_URL` | `jdbc:postgresql://localhost:5432/ledger` | prod datasource URL |
-| `DB_USERNAME` / `DB_PASSWORD` | `ledger` / `ledger` | prod credentials |
-| `SERVER_PORT` | `8080` | HTTP port |
-| `ledger.reversal.approval-threshold-minor` | `100000` | reversals above this (per line) require an approver |
-| `ledger.outbox.poll-interval-ms` | `2000` | outbox relay interval |
+| Variable                                   | Default                                   | Purpose                                             |
+|--------------------------------------------|-------------------------------------------|-----------------------------------------------------|
+| `SPRING_PROFILES_ACTIVE`                   | `local`                                   | `local` (H2) or `prod` (Postgres)                   |
+| `DB_URL`                                   | `jdbc:postgresql://localhost:5432/ledger` | prod datasource URL                                 |
+| `DB_USERNAME` / `DB_PASSWORD`              | `ledger` / `ledger`                       | prod credentials                                    |
+| `SERVER_PORT`                              | `8092`                                    | HTTP port                                           |
+| `ledger.reversal.approval-threshold-minor` | `100000`                                  | reversals above this (per line) require an approver |
+| `ledger.outbox.poll-interval-ms`           | `2000`                                    | outbox relay interval                               |
 
 > **Build note:** this project uses Gradle but does not ship the wrapper binary.
 > Use a locally installed Gradle 8.x (`gradle …`), or build via Docker (the
@@ -124,22 +133,22 @@ marked `REVERSED` and linked to its reversal but otherwise untouched.
 
 ### Other endpoints
 
-| Method & path | Purpose |
-|---------------|---------|
-| `POST /api/v1/accounts` | Create a ledger account |
-| `GET  /api/v1/accounts/{id}` | Get an account |
-| `GET  /api/v1/accounts/{id}/balance` | Real-time balance (posted / held / available) |
-| `GET  /api/v1/accounts/{id}/statement?from=&to=` | Statement with running balance |
-| `GET  /api/v1/accounts/{id}/holds` | Holds for an account |
-| `GET  /api/v1/accounts/{id}/snapshots` | Snapshots for an account |
-| `GET  /api/v1/journals/{id}` | Journal with its entries |
-| `GET  /api/v1/journals?externalRef=` | Find journals by business reference |
-| `GET  /api/v1/entries?accountId=` | Paged entries for an account |
-| `POST /api/v1/holds` · `POST /api/v1/holds/{id}/release` | Place / release a hold |
-| `GET  /api/v1/trial-balance?asOf=` | Trial balance (debits must equal credits) |
-| `POST /api/v1/snapshots` | Generate balance snapshots as of a date |
-| `POST /api/v1/periods` · `POST /api/v1/periods/{id}/state` | Manage accounting periods |
-| `GET  /api/v1/account-types` · `GET /api/v1/currencies` | Reference data |
+| Method & path                                              | Purpose                                       |
+|------------------------------------------------------------|-----------------------------------------------|
+| `POST /api/v1/accounts`                                    | Create a ledger account                       |
+| `GET  /api/v1/accounts/{id}`                               | Get an account                                |
+| `GET  /api/v1/accounts/{id}/balance`                       | Real-time balance (posted / held / available) |
+| `GET  /api/v1/accounts/{id}/statement?from=&to=`           | Statement with running balance                |
+| `GET  /api/v1/accounts/{id}/holds`                         | Holds for an account                          |
+| `GET  /api/v1/accounts/{id}/snapshots`                     | Snapshots for an account                      |
+| `GET  /api/v1/journals/{id}`                               | Journal with its entries                      |
+| `GET  /api/v1/journals?externalRef=`                       | Find journals by business reference           |
+| `GET  /api/v1/entries?accountId=`                          | Paged entries for an account                  |
+| `POST /api/v1/holds` · `POST /api/v1/holds/{id}/release`   | Place / release a hold                        |
+| `GET  /api/v1/trial-balance?asOf=`                         | Trial balance (debits must equal credits)     |
+| `POST /api/v1/snapshots`                                   | Generate balance snapshots as of a date       |
+| `POST /api/v1/periods` · `POST /api/v1/periods/{id}/state` | Manage accounting periods                     |
+| `GET  /api/v1/account-types` · `GET /api/v1/currencies`    | Reference data                                |
 
 Errors use a consistent envelope: `{ timestamp, status, error, code, message, path, details }`.
 
@@ -159,10 +168,10 @@ by `OutboxPublisher` as in-process `OutboxMessage` events. Attach a broker
 adapter (Kafka, SNS, …) by listening for `OutboxMessage` to forward them
 onward.
 
-| Event | Trigger |
-|-------|---------|
-| `LedgerPosted` | a journal is posted |
-| `LedgerReversed` | a journal is reversed |
+| Event            | Trigger                                                 |
+|------------------|---------------------------------------------------------|
+| `LedgerPosted`   | a journal is posted                                     |
+| `LedgerReversed` | a journal is reversed                                   |
 | `BalanceUpdated` | an account balance changes (posting, reversal, or hold) |
 
 ---

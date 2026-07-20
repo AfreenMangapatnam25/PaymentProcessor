@@ -1,182 +1,139 @@
 # Limit Service
 
-Production-ready implementation of the platform **Limit Service** — the financial
-guardrail that enforces spending and transaction limits before a payment is
-authorized. It validates per-transaction, daily, weekly and monthly amount/count
-limits across customer, merchant, currency and global scopes, and manages a
-**reserve → commit → release** lifecycle that prevents race conditions and double
-spending.
+The financial guardrail that enforces spending/transaction limits before a payment is authorized, via a **reserve →
+commit → release** capacity lifecycle.
 
-> This document describes how to build, run and call the service. The functional
-> specification lives in [`LimitReadme.md`](./LimitReadme.md).
+> This document describes how to build, run and call the service. The functional specification lives in [
+`LimitReadme.md`](./LimitReadme.md).
 
 ---
 
-## Tech stack
+## 1. Role in the platform
 
-| Concern            | Choice                                            |
-|--------------------|---------------------------------------------------|
-| Language / runtime | Java 17, Spring Boot 3.3                           |
-| Persistence        | PostgreSQL + Spring Data JPA (Hibernate)          |
-| Schema management  | Flyway versioned migrations                        |
-| Caching / atomics  | Redis (Spring Data Redis)                          |
-| Messaging          | Apache Kafka (domain events)                       |
-| Service discovery  | Netflix Eureka client                             |
-| API docs           | springdoc-openapi (Swagger UI)                    |
-| Observability      | Spring Boot Actuator + Micrometer/Prometheus      |
-
----
-
-## Architecture
-
-```
-Payment Service ──HTTP──▶ LimitController(s)
-                              │
-              ┌───────────────┼─────────────────┐
-              ▼               ▼                 ▼
-     LimitEvaluationSvc  ReservationSvc    LimitConfigSvc
-       (dry-run check)   (reserve/commit/  (admin CRUD)
-              │            release)             │
-              ▼               ▼                 ▼
-        LimitResolver ── UsageCounter (SELECT … FOR UPDATE) ── PostgreSQL
-                              │
-                              ├── LimitEventPublisher ──▶ Kafka (limit.reserved/released/exceeded)
-                              └── AuditService ─────────▶ limit_audit_log
-```
-
-### Concurrency model
-
-Correctness under concurrency is guaranteed by a **pessimistic write lock**
-(`SELECT … FOR UPDATE`) taken on each affected `usage_counter` row before it is read
-and mutated. Because the lock is held by the database it serialises competing
-transactions across **every service instance**, closing the race that would
-otherwise let two payments each consume the last of a limit. Counters are locked in
-a deterministic order (by limit-config id) to avoid deadlocks, and an optimistic
-`@Version` column provides a second line of defence.
-
-### Reserve → commit → release lifecycle
-
-1. **Reserve** — evaluate every applicable limit under lock; if all *hard* limits
-   pass, hold the amount/count against each counter, persist a `LimitReservation`
-   (+ per-limit `reservation_line`s) with a TTL, and emit `LimitReserved`. If a hard
-   limit is breached the transaction rolls back and `LimitExceeded` is emitted.
-2. **Commit** — on capture, move the captured portion from *reserved* to *committed*
-   and release any uncaptured remainder (partial capture supported).
-3. **Release** — on failure/cancellation/manual override, return the held capacity.
-4. **Expire** — a scheduled sweeper auto-releases reservations past their TTL.
+- Evaluates a transaction against configured limits (amount/count, over `PER_TRANSACTION`/`DAILY`/`WEEKLY`/`MONTHLY`/
+  `LIFETIME` windows, scoped to `GLOBAL`/`CUSTOMER`/`MERCHANT`/`CURRENCY`/`COUNTRY`) and returns `APPROVED`/`FLAGGED`/
+  `DECLINED`.
+- Holds capacity against a transaction via `LimitReservation` + `ReservationLine` rows before a payment is authorized,
+  so two concurrent payments cannot both consume the last of a limit (pessimistic `SELECT … FOR UPDATE` locking on
+  `usage_counter`, deterministic lock order to avoid deadlocks, plus an optimistic `@Version` column).
+- Moves reserved capacity to committed on capture (`commit`, supports partial capture) or gives it back on
+  failure/void/manual override (`release`).
+- Auto-expires stale reservations past their TTL via `ReservationExpiryScheduler`.
+- Exposes admin CRUD for limit configurations (`LimitConfigController`) and read-only usage/headroom queries.
+- Publishes best-effort domain events to Kafka and writes an append-only audit trail (`LimitAuditLog`) for every
+  decision.
 
 ---
 
-## Running locally
+## 2. Tech stack
 
-Prerequisites: JDK 17, PostgreSQL, Redis, and (optionally) Kafka + Eureka.
+| Concern            | Choice                                                                                    |
+|--------------------|-------------------------------------------------------------------------------------------|
+| Language / runtime | Java 21 (Gradle toolchain), Spring Boot 3.3.2                                             |
+| Persistence        | PostgreSQL + Spring Data JPA (Hibernate)                                                  |
+| Schema management  | Flyway (`V1__init_limit_schema.sql`, `V2__seed_default_limits.sql`), `ddl-auto: validate` |
+| Caching / atomics  | Redis (Spring Data Redis / Jedis)                                                         |
+| Messaging          | Apache Kafka (`spring-kafka`, JSON-serialized events, best-effort publish)                |
+| Service discovery  | Netflix Eureka client                                                                     |
+| API docs           | springdoc-openapi (Swagger UI)                                                            |
+| Observability      | Spring Boot Actuator + Micrometer/Prometheus                                              |
+
+---
+
+## 3. API surface
+
+Base path `/api/v1`. Default port **8085**.
+
+**`LimitCheckController`** (`/api/v1/limits`)
+
+- `POST /check` — dry-run evaluation (no capacity held); returns `decision` (`APPROVED`/`FLAGGED`/`DECLINED`) plus
+  violations.
+- `GET /usage?customerId=&merchantId=&currency=` — current consumption/headroom.
+
+**`ReservationController`** (`/api/v1/reservations`) — called by payment-service
+
+- `POST /` — evaluate + reserve capacity; `201` with the reservation, or `422 LIMIT_EXCEEDED` on a hard breach. Accepts
+  an `idempotencyKey` so retries are safe.
+- `POST /{reservationId}/commit` — capture (optionally partial via `capturedAmount`).
+- `POST /{reservationId}/release` — release held capacity (`reason` optional).
+- `GET /{reservationId}` — fetch by id.
+- `GET /?transactionId=` — fetch reservations for a transaction.
+
+**`LimitConfigController`** (`/api/v1/limit-configs`) — admin CRUD
+
+- `POST /`, `PUT /{id}`, `DELETE /{id}` (soft-delete/disable), `GET /{id}`, `GET /` (list).
+
+---
+
+## 4. Data model
+
+- `LimitConfiguration` — one rule: `dimension` (`AMOUNT`|`COUNT`) × `window` × `scope` (+ optional `scopeId` for
+  entity-specific overrides) × `enforcementMode` (`HARD`|`SOFT`).
+- `UsageCounter` — the mutable per-window/per-scope consumption row that reserve/commit/release mutate under lock.
+- `LimitReservation` + `ReservationLine` — one reservation per transaction, one line per limit it was checked/held
+  against; carries `ReservationStatus` (reserved/committed/released/expired) and a TTL.
+- `LimitAuditLog` — append-only record of every limit decision/action (`AuditAction`).
+
+---
+
+## 5. Inter-service integration
+
+**payment-service now really calls this service.** As of today's wiring, `payment-service`'s new `LimitClient` (in its
+`connector` package) is a real WebClient integration — not a placeholder — against these exact endpoints:
+
+- `POST /api/v1/reservations` — called from `PaymentOrchestrationService` **before the fraud check**, to reserve
+  capacity for the transaction.
+- `POST /api/v1/reservations/{id}/release` — called on fraud block, connector decline, or void, to give the held
+  capacity back.
+- `POST /api/v1/reservations/{id}/commit` — called on successful capture.
+
+Because reservation is a *hard* control (not an advisory signal like fraud), `LimitClient.reserve` fails **closed**: if
+limit-service is unreachable or times out (5s), the reservation is treated as a decline (`LIMIT_UNAVAILABLE`/
+`LIMIT_EXCEEDED`) rather than letting spend bypass limits during an outage. `commit`/`release` are best-effort — a
+failure there is logged, not surfaced, and the reservation will still eventually auto-expire via the TTL sweeper.
+
+Routed through gateway-service at `/api/v1/limits/**`, `/api/v1/limit-configs/**`, `/api/v1/reservations/**` (see
+`gateway-service/src/main/resources/application.yml`, `LIMIT_SERVICE_URI`, default `http://limit-service:8080`).
+
+Kafka events (`limit.reserved`, `limit.released`, `limit.exceeded`) are published best-effort for downstream consumers;
+a publish failure never fails an already-persisted decision.
+
+---
+
+## 6. Running locally
+
+Prerequisites: JDK 21, PostgreSQL, Redis, and (optionally) Kafka + Eureka.
 
 ```bash
-# 1. Create the database
 createdb limit_local
-
-# 2. Build (Flyway runs the migrations on startup)
 gradle clean build            # or ./gradlew clean build if a wrapper is present
-
-# 3. Run with the local profile
 SPRING_PROFILES_ACTIVE=local gradle bootRun
 ```
 
-Profiles: `local` (localhost, verbose SQL), `dev`, `prod` (SSL, tuned pools,
-Prometheus). Secrets in `dev`/`prod` are supplied via environment variables
-(`DB_USERNAME`, `DB_PASSWORD`, `REDIS_PASSWORD`, `SSL_KEYSTORE_*`).
+Profiles: `local` (localhost, verbose SQL), `dev`, `prod` (SSL, tuned pools, Prometheus). Secrets in `dev`/`prod` come
+from env vars (`DB_USERNAME`, `DB_PASSWORD`, `REDIS_PASSWORD`, `SSL_KEYSTORE_*`).
 
-Flyway applies `V1__init_limit_schema.sql` (tables + indexes) and
-`V2__seed_default_limits.sql` (sensible default limits). Hibernate is set to
-`ddl-auto: validate`, so the entities are checked against — never allowed to
-diverge from — the migrated schema.
+Default port: **8085**. Once running:
 
-> Note: this project targets Java 17 and downloads its dependencies from Maven
-> Central at build time. If your repo uses a Gradle wrapper, run `gradle wrapper`
-> once to generate `gradlew`.
-
-Once running:
 - Swagger UI: `http://localhost:8085/swagger-ui.html`
 - OpenAPI JSON: `http://localhost:8085/v3/api-docs`
 - Health: `http://localhost:8085/actuator/health`
 
 ---
 
-## API
+## 7. Design notes
 
-Base path `/api/v1`. Port `8085`.
-
-### Evaluate (dry run, no capacity held)
-
-```http
-POST /api/v1/limits/check
-{
-  "customerId": "cust-123",
-  "merchantId": "merch-9",
-  "currency": "USD",
-  "amount": 2000.00
-}
-```
-Returns `decision` = `APPROVED` | `FLAGGED` (soft breach) | `DECLINED` (hard breach)
-plus the hard/soft violations.
-
-### Reserve capacity
-
-```http
-POST /api/v1/reservations
-{
-  "transactionId": "txn-abc",
-  "customerId": "cust-123",
-  "currency": "USD",
-  "amount": 2000.00,
-  "idempotencyKey": "txn-abc-attempt-1"
-}
-```
-`201` with the reservation, or `422 LIMIT_EXCEEDED` with the offending limits.
-The `idempotencyKey` makes retries safe.
-
-### Commit / release
-
-```http
-POST /api/v1/reservations/{reservationId}/commit   { "capturedAmount": 1500.00 }
-POST /api/v1/reservations/{reservationId}/release   { "reason": "auth-failed" }
-GET  /api/v1/reservations/{reservationId}
-GET  /api/v1/reservations?transactionId=txn-abc
-```
-
-### Usage / headroom
-
-```http
-GET /api/v1/limits/usage?customerId=cust-123&currency=USD
-```
-
-### Admin — limit configuration
-
-```http
-POST   /api/v1/limit-configs        # create
-PUT    /api/v1/limit-configs/{id}   # replace
-DELETE /api/v1/limit-configs/{id}   # disable (soft delete)
-GET    /api/v1/limit-configs        # list
-```
-
-A configuration constrains one **dimension** (`AMOUNT` | `COUNT`) over one
-**window** (`PER_TRANSACTION` | `DAILY` | `WEEKLY` | `MONTHLY` | `LIFETIME`) for one
-**scope** (`GLOBAL` | `CUSTOMER` | `MERCHANT` | `CURRENCY` | `COUNTRY`), with a
-`HARD` or `SOFT` enforcement mode. A `scopeId` of `null` is a scope-wide default; a
-specific `scopeId` overrides that default for the entity.
-
----
-
-## Domain events (Kafka)
-
-| Topic            | Emitted when                                             |
-|------------------|----------------------------------------------------------|
-| `limit.reserved` | Capacity successfully reserved for a transaction.        |
-| `limit.released` | Reserved capacity freed (release, expiry, partial capture). |
-| `limit.exceeded` | A hard limit was breached and the transaction declined.  |
-
-Publication is best-effort: a Kafka failure is logged but never fails a decision
-that has already been persisted.
+- **Reserve → commit → release** as a first-class state machine (not just a status flag) lets partial capture, TTL
+  expiry, and manual release all converge on the same capacity-accounting code path instead of being bolted on
+  separately.
+- **`SELECT … FOR UPDATE` with deterministic lock ordering** on `usage_counter` closes the double-spend race across
+  concurrent instances without needing a distributed lock service; the `@Version` column is a cheap second line of
+  defense against any residual anomaly.
+- **Fail-closed reservation, fail-open advisory checks** — the split between the hard reserve/commit/release control and
+  the softer `/limits/check` dry-run reflects that a limit breach must never be silently bypassed, whereas an advisory
+  check can degrade gracefully.
+- **Best-effort Kafka + durable DB audit log** — the audit trail is the source of truth for compliance, while Kafka is
+  treated as a notification side-channel that must never block or fail a decision.
 
 ---
 
@@ -200,14 +157,10 @@ src/main/java/com/paymentprocessor/limit
 src/main/resources/db/migration   Flyway V1 (schema) + V2 (seed defaults)
 ```
 
----
-
 ## Scope
 
-This build implements the README's core engine: limit configuration, usage
-counters, per-transaction/daily/weekly/monthly amount & count limits, the full
-reserve/commit/release/expire lifecycle, audit trail, Kafka events and REST APIs.
-Velocity, geographic/country and credit-line limits described in the specification
-are intentionally left as follow-on work; the resolver and evaluation pipeline are
-structured so they slot in as additional scopes/dimensions without reworking the
-core.
+This build implements the core engine: limit configuration, usage counters, per-transaction/daily/weekly/monthly
+amount & count limits, the full reserve/commit/release/expire lifecycle, audit trail, Kafka events and REST APIs.
+Velocity, geographic/country and credit-line limits described in `LimitReadme.md` are intentionally left as follow-on
+work; the resolver/evaluation pipeline are structured so they slot in as additional scopes/dimensions without reworking
+the core.
