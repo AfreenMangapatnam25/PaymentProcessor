@@ -1,18 +1,39 @@
 spring:
   application:
     name: tokenization-service
+  config:
+    import: "optional:configserver:${CONFIG_SERVER_URL:http://localhost:8888}"
+  cloud:
+    config:
+      fail-fast: false
+      retry:
+        max-attempts: 6
+        initial-interval: 1500
+        multiplier: 1.5
+        max-interval: 3000
   datasource:
-    url: jdbc:postgresql://localhost:5432/tokenization_db
+    url: jdbc:postgresql://localhost:5432/tokenizationservicedb
     username: postgres
-    password: postgres
+    password: Mysql@2022
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
-      ddl-auto: validate
+      # WORKAROUND: this service ships with no Flyway migrations at all (no db/migration dir),
+      # so with ddl-auto=validate it cannot start against an empty database - there is no schema
+      # for Hibernate to validate against. Using "update" lets Hibernate create/evolve the schema
+      # from the @Entity classes so local/dev startup works. This is NOT a substitute for real
+      # schema management (Flyway/Liquibase) and should not be relied on for production.
+      ddl-auto: update
     show-sql: false
+    # Required so data.sql runs AFTER Hibernate has created the tables (ddl-auto: update above),
+    # otherwise Spring runs data.sql before the schema exists and inserts fail.
+    defer-datasource-initialization: true
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
+  sql:
+    init:
+      mode: always
 
 server:
   port: 8084

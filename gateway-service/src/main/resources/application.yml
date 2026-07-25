@@ -1,6 +1,16 @@
 spring:
   application:
     name: gateway-service
+  config:
+    import: "optional:configserver:${CONFIG_SERVER_URL:http://localhost:8888}"
+  cloud:
+    config:
+      fail-fast: false
+      retry:
+        max-attempts: 6
+        initial-interval: 1500
+        multiplier: 1.5
+        max-interval: 3000
 
   # --- Redis: backing store for token-bucket rate limits (ephemeral) ---
   data:

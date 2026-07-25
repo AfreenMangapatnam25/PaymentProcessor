@@ -1,10 +1,20 @@
 spring:
   application:
     name: limit-service
+  config:
+    import: "optional:configserver:${CONFIG_SERVER_URL:http://localhost:8888}"
+  cloud:
+    config:
+      fail-fast: false
+      retry:
+        max-attempts: 6
+        initial-interval: 1500
+        multiplier: 1.5
+        max-interval: 3000
   datasource:
-    url: jdbc:postgresql://localhost:5432/limit_db
+    url: jdbc:postgresql://localhost:5432/limitservicedb
     username: postgres
-    password: postgres
+    password: Mysql@2022
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
@@ -72,3 +82,14 @@ logging:
   level:
     root: INFO
     com.paymentprocessor: DEBUG
+
+---
+# Local/dev profile document: layer the sample-data seed migration (db/seed) on
+# top of the base schema/reference-data migrations (db/migration) so local
+# Postgres environments get deterministic sample limit configs/usage to test against.
+spring:
+  config:
+    activate:
+      on-profile: local
+  flyway:
+    locations: classpath:db/migration,classpath:db/seed

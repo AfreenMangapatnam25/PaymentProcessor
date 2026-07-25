@@ -16,6 +16,7 @@ Each microservice includes 4 YAML configuration files:
 To activate a specific profile, use the Spring profile system:
 
 ### Command Line
+
 ```bash
 # Local development
 java -jar service.jar --spring.profiles.active=local
@@ -28,12 +29,14 @@ java -jar service.jar --spring.profiles.active=prod
 ```
 
 ### Environment Variable
+
 ```bash
 export SPRING_PROFILES_ACTIVE=local
 java -jar service.jar
 ```
 
 ### application.yml Override
+
 ```yaml
 spring:
   profiles:
@@ -41,6 +44,7 @@ spring:
 ```
 
 ### Gradle (bootRun)
+
 ```bash
 ./gradlew :service-name:bootRun --args='--spring.profiles.active=local'
 ```
@@ -50,7 +54,9 @@ spring:
 ## Configuration Profiles Breakdown
 
 ### 1. Default Profile (application.yml)
+
 **Use Case:** Default settings, matches local/localhost setup
+
 - Database: `localhost:5432` (local PostgreSQL)
 - Eureka: `localhost:8761` (local Eureka server)
 - Credentials: Default postgres/postgres
@@ -59,7 +65,9 @@ spring:
 - DDL Auto: `validate` (doesn't modify schema)
 
 ### 2. Local Profile (application-local.yml)
+
 **Use Case:** Local machine development
+
 - Database: `localhost:5432` with **local** database name
 - Eureka: **Disabled** (register-with-eureka: false)
 - Credentials: Default postgres/postgres
@@ -69,7 +77,9 @@ spring:
 - Best for: Rapid development and testing locally
 
 ### 3. Dev Profile (application-dev.yml)
+
 **Use Case:** Development/staging environment (hosted infrastructure)
+
 - Database: `db-dev.internal:5432` with dev database
 - Eureka: Dev Eureka server (register-with-eureka: true)
 - Credentials: **Environment variables** (`${DB_USERNAME}`, `${DB_PASSWORD}`)
@@ -80,7 +90,9 @@ spring:
 - Best for: Shared dev environment, staging tests
 
 ### 4. Prod Profile (application-prod.yml)
+
 **Use Case:** Production environment
+
 - Database: `db-prod.internal:5432` with prod database
 - Eureka: Prod Eureka server
 - Credentials: **Environment variables** (must be set securely)
@@ -112,7 +124,9 @@ export SSL_KEYSTORE_PASSWORD=keystore_password
 ```
 
 ### Using .env Files (for local development)
+
 Create `.env` file in project root:
+
 ```bash
 DB_USERNAME=postgres
 DB_PASSWORD=postgres
@@ -122,6 +136,7 @@ SSL_KEYSTORE_PASSWORD=password
 ```
 
 Then load with:
+
 ```bash
 source .env
 java -jar service.jar --spring.profiles.active=dev
@@ -134,11 +149,13 @@ java -jar service.jar --spring.profiles.active=dev
 ### Tokenization Service (Port 8084)
 
 **Profiles:**
+
 - **local:** create-drop, localhost DB, disabled Eureka
 - **dev:** validate, dev.internal DB, dev Eureka, shorter retention (testing)
 - **prod:** validate, prod.internal DB, prod Eureka, HSM enabled, full retention (2555 days)
 
 **Key Config:**
+
 ```yaml
 tokenization:
   encryption:
@@ -154,11 +171,13 @@ tokenization:
 ### Limit Service (Port 8085)
 
 **Profiles:**
+
 - **local:** create-drop, localhost DB/Redis, disabled Eureka
 - **dev:** validate, dev.internal DB/Redis, dev Eureka
 - **prod:** validate, prod.internal DB/Redis, prod Eureka, optimized pool (30 conns)
 
 **Key Config:**
+
 ```yaml
 limit:
   daily-transaction-limit: 10000.00 (local/dev) | 50000.00 (prod)
@@ -170,11 +189,13 @@ limit:
 ### Authorization Service (Port 8086)
 
 **Profiles:**
+
 - **local:** create-drop, localhost DB, disabled Eureka
 - **dev:** validate, dev.internal DB, dev Eureka
 - **prod:** validate, prod.internal DB, prod Eureka, SSL enabled, longer timeouts
 
 **Key Config:**
+
 ```yaml
 authorization:
   timeout-seconds: 30 (local/dev) | 60 (prod)
@@ -188,6 +209,7 @@ authorization:
 ## Quick Start
 
 ### Local Development
+
 ```bash
 # Start PostgreSQL locally
 docker run --name postgres -e POSTGRES_PASSWORD=postgres -p 5432:5432 -d postgres
@@ -201,6 +223,7 @@ cd tokenization-service
 ```
 
 ### Development Environment
+
 ```bash
 # Set environment variables
 export DB_USERNAME=dev_user
@@ -212,6 +235,7 @@ export REDIS_PASSWORD=redis_password
 ```
 
 ### Production Deployment (Docker)
+
 ```dockerfile
 FROM openjdk:21-slim
 COPY target/service.jar app.jar
@@ -219,6 +243,7 @@ ENTRYPOINT ["java", "-jar", "app.jar", "--spring.profiles.active=prod"]
 ```
 
 ### Production Deployment (Kubernetes)
+
 ```yaml
 apiVersion: v1
 kind: Pod
@@ -226,21 +251,21 @@ metadata:
   name: tokenization-service
 spec:
   containers:
-  - name: tokenization
-    image: payment-processor/tokenization-service:1.0.0
-    env:
-    - name: SPRING_PROFILES_ACTIVE
-      value: "prod"
-    - name: DB_USERNAME
-      valueFrom:
-        secretKeyRef:
-          name: db-credentials
-          key: username
-    - name: DB_PASSWORD
-      valueFrom:
-        secretKeyRef:
-          name: db-credentials
-          key: password
+    - name: tokenization
+      image: payment-processor/tokenization-service:1.0.0
+      env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: "prod"
+        - name: DB_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: db-credentials
+              key: username
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: db-credentials
+              key: password
 ```
 
 ---
@@ -262,16 +287,19 @@ Example: If `application.yml` has `server.port: 8084` and you run with `--server
 ## Database Connection Pooling
 
 ### Local Profile
+
 - **Type:** Default HikariCP
 - **Max Pool Size:** 10
 - **Min Idle:** 2
 
 ### Dev Profile
+
 - **Type:** HikariCP
 - **Max Pool Size:** 20 (Tokenization) | 30 (Limit)
 - **Min Idle:** 5-10
 
 ### Prod Profile
+
 - **Type:** HikariCP
 - **Max Pool Size:** 20-30
 - **Min Idle:** 5-10
@@ -292,12 +320,14 @@ management:
 ```
 
 **Available endpoints:**
+
 - `GET /actuator/health` - Service health
 - `GET /actuator/metrics` - Available metrics
 - `GET /actuator/metrics/{metric}` - Specific metric
 - `GET /actuator/prometheus` - Prometheus scrape endpoint
 
 **Example:**
+
 ```bash
 curl http://localhost:8084/actuator/health
 # {"status":"UP","components":{"db":{"status":"UP"},"diskSpace":{"status":"UP"}}}
@@ -308,6 +338,7 @@ curl http://localhost:8084/actuator/health
 ## Logging Configuration
 
 ### Local Profile
+
 ```
 [DEBUG] com.paymentprocessor - Application debug logs
 [DEBUG] org.springframework.web - Spring Web debug logs
@@ -315,12 +346,14 @@ curl http://localhost:8084/actuator/health
 ```
 
 ### Dev Profile
+
 ```
 [WARN] root - All other logs
 [INFO] com.paymentprocessor - Application info logs
 ```
 
 ### Prod Profile
+
 ```
 [WARN] root - All other logs
 [INFO] com.paymentprocessor - Application info logs
@@ -332,6 +365,7 @@ Format: Timestamp - Logger - Message
 ## Troubleshooting
 
 ### Database Connection Failed
+
 ```
 Error: ERROR: database "tokenization_db" does not exist
 
@@ -342,6 +376,7 @@ Solution:
 ```
 
 ### Port Already in Use
+
 ```
 Error: java.net.BindException: Address already in use
 
@@ -351,6 +386,7 @@ Solution:
 ```
 
 ### Eureka Connection Failed
+
 ```
 Error: com.netflix.discovery.shared.transport.TransportException
 
@@ -360,6 +396,7 @@ Or ensure Eureka server is running on `localhost:8761`
 ```
 
 ### Environment Variable Not Found
+
 ```
 Error: Could not resolve placeholder 'DB_PASSWORD' in value...
 

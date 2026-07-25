@@ -5,12 +5,22 @@
 spring:
   application:
     name: authorization-service
+  config:
+    import: "optional:configserver:${CONFIG_SERVER_URL:http://localhost:8888}"
+  cloud:
+    config:
+      fail-fast: false
+      retry:
+        max-attempts: 6
+        initial-interval: 1500
+        multiplier: 1.5
+        max-interval: 3000
   profiles:
     default: local
   datasource:
-    url: jdbc:postgresql://localhost:5432/authorization_db
+    url: jdbc:postgresql://localhost:5432/authorizationservicedb
     username: postgres
-    password: postgres
+    password: Mysql@2022
     driver-class-name: org.postgresql.Driver
     hikari:
       maximum-pool-size: 20
@@ -142,3 +152,11 @@ logging:
   level:
     root: INFO
     com.paymentprocessor: DEBUG
+
+---
+spring:
+  config:
+    activate:
+      on-profile: local
+  flyway:
+    locations: classpath:db/migration,classpath:db/seed

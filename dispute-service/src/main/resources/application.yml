@@ -1,10 +1,20 @@
 spring:
   application:
     name: dispute-service
+  config:
+    import: "optional:configserver:${CONFIG_SERVER_URL:http://localhost:8888}"
+  cloud:
+    config:
+      fail-fast: false
+      retry:
+        max-attempts: 6
+        initial-interval: 1500
+        multiplier: 1.5
+        max-interval: 3000
   datasource:
-    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:dispute_db}
-    username: ${DB_USERNAME:dispute_service}
-    password: ${DB_PASSWORD:dispute_service}
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:disputeservicedb}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:Mysql@2022}
     driver-class-name: org.postgresql.Driver
     hikari:
       maximum-pool-size: ${DB_POOL_SIZE:20}
@@ -53,3 +63,11 @@ dispute:
   deadline:
     sweep-interval-ms: 3600000
     sweep-initial-delay-ms: 60000
+
+---
+spring:
+  config:
+    activate:
+      on-profile: local
+  flyway:
+    locations: classpath:db/migration,classpath:db/seed

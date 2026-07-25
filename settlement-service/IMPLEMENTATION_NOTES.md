@@ -95,16 +95,16 @@ transient (retry), `nsf` → recoverable.
 
 ## API surface
 
-| Area | Endpoints |
-|------|-----------|
-| Items | `POST/GET /api/settlement-items` |
-| Batches | `GET /api/settlement-batches`, `.../{id}`, `.../{id}/payouts`, `POST .../{id}/initiate|reconcile|reverse` |
-| Payouts | `GET /api/payouts`, `.../{id}`, `POST .../{id}/confirm|returns` |
-| Reserves | `GET /api/reserves`, `POST /api/reserves/release-due` |
-| Adjustments | `POST /api/adjustments`, `POST .../{id}/approve|reject`, `GET ...` |
-| Runs | `POST /api/settlement-runs` |
-| Reports | `GET /api/reports/{merchant-statement/{id},daily-summary,pending-settlements,reserve-release-schedule/{id},exceptions}` |
-| Ops | `GET /actuator/health`, `/actuator/prometheus` |
+| Area        | Endpoints                                                                                                               |
+|-------------|-------------------------------------------------------------------------------------------------------------------------|
+| Items       | `POST/GET /api/settlement-items`                                                                                        |
+| Batches     | `GET /api/settlement-batches`, `.../{id}`, `.../{id}/payouts`, `POST .../{id}/initiate                                  |reconcile|reverse` |
+| Payouts     | `GET /api/payouts`, `.../{id}`, `POST .../{id}/confirm                                                                  |returns` |
+| Reserves    | `GET /api/reserves`, `POST /api/reserves/release-due`                                                                   |
+| Adjustments | `POST /api/adjustments`, `POST .../{id}/approve                                                                         |reject`, `GET ...` |
+| Runs        | `POST /api/settlement-runs`                                                                                             |
+| Reports     | `GET /api/reports/{merchant-statement/{id},daily-summary,pending-settlements,reserve-release-schedule/{id},exceptions}` |
+| Ops         | `GET /actuator/health`, `/actuator/prometheus`                                                                          |
 
 ## Scheduling
 

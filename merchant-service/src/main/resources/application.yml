@@ -1,10 +1,20 @@
 spring:
   application:
     name: merchant-service
+  config:
+    import: "optional:configserver:${CONFIG_SERVER_URL:http://localhost:8888}"
+  cloud:
+    config:
+      fail-fast: false
+      retry:
+        max-attempts: 6
+        initial-interval: 1500
+        multiplier: 1.5
+        max-interval: 3000
   datasource:
-    url: ${DB_URL:jdbc:postgresql://localhost:5432/merchant}
-    username: ${DB_USERNAME:merchant}
-    password: ${DB_PASSWORD:merchant}
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/merchantservicedb}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:Mysql@2022}
     hikari:
       maximum-pool-size: ${DB_POOL_MAX:20}
       minimum-idle: ${DB_POOL_MIN:5}
@@ -76,3 +86,14 @@ springdoc:
 logging:
   level:
     com.paymentprocessor.merchantservice: ${APP_LOG_LEVEL:INFO}
+
+---
+# Local/dev only: also run the db/seed migrations (sample merchant + related rows)
+# after db/migration. Activate with SPRING_PROFILES_ACTIVE=local. Never enabled by
+# default, so seed data never applies to a production database.
+spring:
+  config:
+    activate:
+      on-profile: local
+  flyway:
+    locations: classpath:db/migration,classpath:db/seed

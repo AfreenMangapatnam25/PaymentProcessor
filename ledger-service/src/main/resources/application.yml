@@ -1,8 +1,30 @@
 spring:
   application:
     name: ledger-service
+  config:
+    import: "optional:configserver:${CONFIG_SERVER_URL:http://localhost:8888}"
+  cloud:
+    config:
+      fail-fast: false
+      retry:
+        max-attempts: 6
+        initial-interval: 1500
+        multiplier: 1.5
+        max-interval: 3000
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:local}
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:ledgerservicedb}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:Mysql@2022}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:20}
+      minimum-idle: 5
+      connection-timeout: 30000
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
   jpa:
     open-in-view: false
     properties:
@@ -55,3 +77,14 @@ info:
     name: ledger-service
     description: Immutable double-entry financial book of record
     version: 1.0.0
+
+---
+# Local/dev profile document: layer the sample-data seed migrations (db/seed) on
+# top of the base schema/reference-data migrations (db/migration) so local
+# Postgres environments get deterministic sample accounts/journals to test against.
+spring:
+  config:
+    activate:
+      on-profile: local
+  flyway:
+    locations: classpath:db/migration,classpath:db/seed

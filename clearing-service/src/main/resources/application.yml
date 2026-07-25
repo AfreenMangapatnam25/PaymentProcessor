@@ -1,11 +1,21 @@
 spring:
   application:
     name: clearing-service
+  config:
+    import: "optional:configserver:${CONFIG_SERVER_URL:http://localhost:8888}"
+  cloud:
+    config:
+      fail-fast: false
+      retry:
+        max-attempts: 6
+        initial-interval: 1500
+        multiplier: 1.5
+        max-interval: 3000
 
   datasource:
-    url: ${DB_URL:jdbc:postgresql://localhost:5432/clearing}
-    username: ${DB_USERNAME:clearing}
-    password: ${DB_PASSWORD:clearing}
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/clearingservicedb}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:Mysql@2022}
     hikari:
       pool-name: clearing-pool
       maximum-pool-size: ${DB_POOL_MAX:20}
@@ -108,3 +118,11 @@ clearing:
     # Optional API-key gate for the REST API. Disabled by default.
     api-key-enabled: ${CLEARING_API_KEY_ENABLED:false}
     api-key: ${CLEARING_API_KEY:}
+
+---
+spring:
+  config:
+    activate:
+      on-profile: local
+  flyway:
+    locations: classpath:db/migration,classpath:db/seed

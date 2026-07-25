@@ -13,6 +13,16 @@ server:
 spring:
   application:
     name: settlement-service
+  config:
+    import: "optional:configserver:${CONFIG_SERVER_URL:http://localhost:8888}"
+  cloud:
+    config:
+      fail-fast: false
+      retry:
+        max-attempts: 6
+        initial-interval: 1500
+        multiplier: 1.5
+        max-interval: 3000
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:dev}
   jackson:
@@ -86,6 +96,12 @@ spring:
     open-in-view: false
     properties:
       hibernate.jdbc.time_zone: UTC
+    # Hibernate creates the schema on startup (ddl-auto: update); defer data.sql
+    # until after that so the seed inserts below don't race the DDL.
+    defer-datasource-initialization: true
+  sql:
+    init:
+      mode: always
   flyway:
     enabled: false
   h2:
@@ -98,9 +114,9 @@ spring:
     activate:
       on-profile: prod
   datasource:
-    url: ${DB_URL:jdbc:postgresql://localhost:5432/settlement}
-    username: ${DB_USERNAME:settlement}
-    password: ${DB_PASSWORD:settlement}
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/settlementservicedb}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:Mysql@2022}
     driver-class-name: org.postgresql.Driver
     hikari:
       maximum-pool-size: ${DB_POOL_SIZE:20}

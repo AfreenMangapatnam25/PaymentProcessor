@@ -1,0 +1,8 @@
+# gateway-service is a stateless routing/rate-limiting layer and owns no
+# database. Only Redis + downstream routing config live here if/when they
+# need to be centrally managed.
+spring:
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}

@@ -1,0 +1,6 @@
+# Backs reporting-service (spring.application.name: analytics)
+spring:
+  datasource:
+    url: ${POSTGRES_URL:jdbc:postgresql://localhost:5432/reportingservicedb}
+    username: ${POSTGRES_USER:postgres}
+    password: ${POSTGRES_PASSWORD:Mysql@2022}

@@ -1,11 +1,21 @@
 spring:
   application:
     name: analytics
+  config:
+    import: "optional:configserver:${CONFIG_SERVER_URL:http://localhost:8888}"
+  cloud:
+    config:
+      fail-fast: false
+      retry:
+        max-attempts: 6
+        initial-interval: 1500
+        multiplier: 1.5
+        max-interval: 3000
   # ---- Postgres: operational job-metadata store (this service DOES own this) ----
   datasource:
-    url: ${POSTGRES_URL:jdbc:postgresql://localhost:5432/analytics}
-    username: ${POSTGRES_USER:analytics}
-    password: ${POSTGRES_PASSWORD:analytics}
+    url: ${POSTGRES_URL:jdbc:postgresql://localhost:5432/reportingservicedb}
+    username: ${POSTGRES_USER:postgres}
+    password: ${POSTGRES_PASSWORD:Mysql@2022}
     hikari:
       pool-name: analytics-jobs
       maximum-pool-size: 10
@@ -92,3 +102,11 @@ springdoc:
 logging:
   level:
     com.paymentprocessor.analytics: INFO
+
+---
+spring:
+  config:
+    activate:
+      on-profile: local
+  flyway:
+    locations: classpath:db/migration,classpath:db/seed
