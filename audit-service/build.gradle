@@ -40,6 +40,10 @@ dependencies {
     implementation 'org.springframework.kafka:spring-kafka'
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
     implementation 'io.micrometer:micrometer-registry-prometheus'
+    // Resource-server security: validates the RS256 access tokens minted by
+    // authentication-service against its published JWK set (see SecurityConfig).
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
     implementation 'software.amazon.awssdk:s3'
     implementation "org.springdoc:springdoc-openapi-starter-webmvc-ui:${springdocVersion}"
     annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'

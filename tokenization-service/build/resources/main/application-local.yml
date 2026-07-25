@@ -2,9 +2,9 @@ spring:
   application:
     name: tokenization-service
   datasource:
-    url: jdbc:postgresql://localhost:5432/tokenization_local
+    url: jdbc:postgresql://localhost:5432/tokenizationservicedb
     username: postgres
-    password: postgres
+    password: Mysql@2022
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:

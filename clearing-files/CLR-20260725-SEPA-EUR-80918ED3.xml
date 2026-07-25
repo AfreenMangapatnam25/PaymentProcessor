@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:pacs.008.001.08">
+  <FIToFICstmrCdtTrf>
+    <GrpHdr>
+      <MsgId>CLR-20260725-SEPA-EUR-80918ED3</MsgId>
+      <CreDtTm>2026-07-25T15:25:36.919034900Z</CreDtTm>
+      <NbOfTxs>1</NbOfTxs>
+      <CtrlSum>120.00</CtrlSum>
+      <SttlmInf><SttlmMtd>CLRG</SttlmMtd></SttlmInf>
+    </GrpHdr>
+    <CdtTrfTxInf>
+      <PmtId><EndToEndId>SRC-TXN-0005</EndToEndId></PmtId>
+      <IntrBkSttlmAmt Ccy="EUR">120.00</IntrBkSttlmAmt>
+      <IntrBkSttlmDt>2026-07-25</IntrBkSttlmDt>
+      <ChrgBr>SLEV</ChrgBr>
+      <Cdtr><Id>MERCH-0005</Id></Cdtr>
+      <Purp><Cd>SALE</Cd></Purp>
+    </CdtTrfTxInf>
+  </FIToFICstmrCdtTrf>
+</Document>

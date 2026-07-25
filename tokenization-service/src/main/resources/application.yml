@@ -34,6 +34,15 @@ spring:
   sql:
     init:
       mode: always
+  # OAuth2 resource server. This service holds card data, so every caller (normally
+  # payment-service, service-to-service) must present an RS256 JWT minted by
+  # authentication-service. Keys come from its JWKS document; issuer-uri pins `iss`.
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: ${JWKS_URI:http://localhost:8081/.well-known/jwks.json}
+          issuer-uri: ${JWT_ISSUER:https://auth.paymentprocessor.local}
 
 server:
   port: 8084
@@ -56,7 +65,28 @@ tokenization:
   audit:
     enabled: true
 
+# Toggle: lets local/dev runs and the seeded sample data be exercised without a token.
+security:
+  jwt:
+    enabled: ${SECURITY_JWT_ENABLED:true}
+
 logging:
   level:
     root: INFO
     com.paymentprocessor: DEBUG
+
+---
+# --------------------------------------------------------------------------
+# local profile: developer laptops only. JWT validation is switched off so the
+# CRUD controllers and the seeded data.sql rows can be exercised without running
+# authentication-service. Note this service also has application-local.yml; both
+# documents are merged when the `local` profile is active.
+# --------------------------------------------------------------------------
+spring:
+  config:
+    activate:
+      on-profile: local
+
+security:
+  jwt:
+    enabled: false

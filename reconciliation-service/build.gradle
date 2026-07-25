@@ -35,6 +35,12 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
     implementation 'org.springframework.kafka:spring-kafka'
 
+    // Security: validate RS256 JWTs minted by authentication-service (port 8081)
+    // against its published JWKS. This service is a pure resource server - it never
+    // issues tokens, it only verifies them.
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
+
     implementation 'org.flywaydb:flyway-core'
     implementation 'org.flywaydb:flyway-database-postgresql'
 

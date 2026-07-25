@@ -38,6 +38,15 @@ spring:
   sql:
     init:
       mode: never
+  # OAuth2 resource server. Access tokens are minted by authentication-service
+  # (social / password login) and signed RS256; we verify them locally against its
+  # published JWK set, so no network call to the auth service is needed per request.
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: ${JWKS_URI:http://localhost:8081/.well-known/jwks.json}
+          issuer-uri: ${JWT_ISSUER:https://auth.paymentprocessor.local}
 
 server:
   port: ${SERVER_PORT:8092}
@@ -78,6 +87,11 @@ info:
     description: Immutable double-entry financial book of record
     version: 1.0.0
 
+# Toggle: lets local/dev runs and the seeded sample data be exercised without a token.
+security:
+  jwt:
+    enabled: ${SECURITY_JWT_ENABLED:true}
+
 ---
 # Local/dev profile document: layer the sample-data seed migrations (db/seed) on
 # top of the base schema/reference-data migrations (db/migration) so local
@@ -88,3 +102,9 @@ spring:
       on-profile: local
   flyway:
     locations: classpath:db/migration,classpath:db/seed
+
+# Local/dev runs are exercised against seeded sample data with plain curl, so the
+# JWT resource-server chain is swapped for a permit-all chain here (never in prod).
+security:
+  jwt:
+    enabled: false

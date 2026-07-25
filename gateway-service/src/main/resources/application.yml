@@ -34,9 +34,19 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          jwk-set-uri: ${JWKS_URI:http://authentication-service:8080/.well-known/jwks.json}
-          # Only accept tokens minted for this platform.
-          issuer-uri: ${JWT_ISSUER_URI:}
+          # Keys are fetched from authentication-service's published JWK set.
+          #
+          # issuer-uri is deliberately NOT set here. A blank default (${VAR:}) still counts as
+          # "property present" for @ConditionalOnProperty, which makes Spring Boot publish BOTH
+          # a jwk-set-uri decoder and an issuer-uri decoder - two beans where one is required,
+          # failing startup with "required a single bean, but 2 were found".
+          #
+          # The gateway therefore verifies the SIGNATURE and expiry only. Issuer and the
+          # purpose=access claim are enforced by each downstream service's own JwtDecoder, so a
+          # token that bypasses the gateway is still fully validated. To have the gateway check
+          # the issuer too, set issuer-uri to a REAL value (never blank) - Boot then publishes
+          # only the issuer-based decoder.
+          jwk-set-uri: ${JWKS_URI:http://localhost:8081/.well-known/jwks.json}
 
   cloud:
     gateway:

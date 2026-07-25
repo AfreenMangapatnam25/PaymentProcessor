@@ -13,15 +13,65 @@ to skip it. Config Server is optional (`optional:configserver:...import`).
 
 Base URL: http://localhost:8095
 
-Auth: All `/api/*` routes require header `X-Api-Key: <key>` (see `audit.security.api-keys`,
-default `local-dev-key`). In the `local` Spring profile `audit.security.enabled=false`, so the
-filter is registered but disabled and no key is required — send the header anyway if you plan to
-run the same requests against a non-local profile. `/actuator/**`, `/swagger-ui/**`, `/v3/api-docs/**`
-and `/error` are always exempt.
+Auth: two independent gates on `/api/*` — a JWT bearer token **and** the pre-existing
+`X-Api-Key: <key>` header (see `audit.security.api-keys`, default `local-dev-key`). In the `local`
+Spring profile both are off (`audit.security.enabled=false`, `security.jwt.enabled=false`), so the
+examples below run as written — send the API-key header anyway if you plan to run the same requests
+against a non-local profile. `/actuator/**`, `/swagger-ui/**`, `/v3/api-docs/**` and `/error` are
+always exempt. See [Authentication](#authentication) below.
 
 Seeded sample data (see `src/main/resources/db/seed/V3__seed_sample_data.sql`, local profile only)
 provides 5 audit records (`aud_01J9ZQKR000000000000000001` … `...005`) and one sealed batch for
 `2026-07-24`, so the GET examples below use those ids directly.
+
+## Authentication
+
+This service is now an OAuth2 **resource server**: every endpoint below requires
+`Authorization: Bearer <accessToken>` by default. Tokens are RS256 JWTs issued by
+`authentication-service` (port 8081) and validated locally against its JWKS at
+`http://localhost:8081/.well-known/jwks.json` — signature, issuer, expiry, plus the `purpose`
+claim, which must be `access` (refresh / step-up tokens are rejected). Claims map to authorities
+as `scope` (space-delimited) -> `SCOPE_*`, and `principal_type` (`USER`, `MERCHANT`, `ADMIN`,
+`SERVICE`) -> one `ROLE_*`. See `config/SecurityConfig.java`.
+
+**Getting a token.** Log in against `authentication-service` on port 8081 — password login
+(`POST http://localhost:8081/api/v1/auth/login`) or social login (Google / GitHub / Microsoft).
+The token comes back as `tokens.accessToken`. See `authentication-service/API_TESTING.md` for the
+full password/MFA and OAuth2 social-login flows.
+
+```bash
+TOKEN=$(curl -s -X POST http://localhost:8081/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"alice@example.com","password":"<password>"}' \
+  | jq -r '.tokens.accessToken')
+```
+
+**Testing without a token.** `security.jwt.enabled` (env `SECURITY_JWT_ENABLED`) defaults to
+`true`. The `local` profile document in `application.yml` sets it to `false`, which swaps in a
+permit-all chain, so with `SPRING_PROFILES_ACTIVE=local` — the profile the seeded-data examples
+below already assume — the plain `curl` commands in this guide work as-is.
+Never set it to `false` outside a developer machine or an ephemeral CI container.
+
+**Always public** (no token, in either mode): `/actuator/health/**`, `/actuator/info`,
+`/actuator/prometheus`, `/v3/api-docs/**`, `/swagger-ui/**`, `/swagger-ui.html`, `/error`.
+
+**Two independent gates.** The pre-existing `X-Api-Key` filter (`audit.security.enabled`,
+`audit.security.api-keys`, default key `local-dev-key`) is kept **in addition to** the JWT chain, and
+runs ahead of it. With both on, an `/api/*` request needs a valid API key *and* a valid bearer token.
+The `local` profile sets `audit.security.enabled=false` as well, so neither is required there.
+
+**The same call, both ways:**
+
+```bash
+# with the `local` profile (security.jwt.enabled=false) — works as written
+curl http://localhost:8095/api/v1/audit-records/aud_01J9ZQKR000000000000000001 \
+  -H "X-Api-Key: local-dev-key"
+
+# with the toggle on (the default) — token required
+curl http://localhost:8095/api/v1/audit-records/aud_01J9ZQKR000000000000000001 \
+  -H "X-Api-Key: local-dev-key" \
+  -H "Authorization: Bearer $TOKEN"
+```
 
 ---
 
@@ -33,7 +83,7 @@ returns `201 Created`).
 
 ### POST /api/v1/audit-records
 
-Auth: header `X-Api-Key`
+Auth: Bearer JWT + header `X-Api-Key` — see [Authentication](#authentication)
 
 Request body:
 
@@ -121,7 +171,7 @@ curl -X POST http://localhost:8095/api/v1/audit-records \
 
 ### GET /api/v1/audit-records/{id}
 
-Auth: header `X-Api-Key`
+Auth: Bearer JWT + header `X-Api-Key` — see [Authentication](#authentication)
 
 Response (`200 OK`):
 
@@ -163,7 +213,7 @@ curl http://localhost:8095/api/v1/audit-records/aud_01J9ZQKR000000000000000001 \
 
 ### GET /api/v1/audit-records
 
-Auth: header `X-Api-Key`
+Auth: Bearer JWT + header `X-Api-Key` — see [Authentication](#authentication)
 
 Query params (exactly one selector group is required):
 
@@ -190,7 +240,7 @@ seal endpoint is for backfills/recovery and is idempotent.
 
 ### GET /api/v1/audit/batches/{date}
 
-Auth: header `X-Api-Key`
+Auth: Bearer JWT + header `X-Api-Key` — see [Authentication](#authentication)
 Path param: `date` — ISO date, e.g. `2026-07-24`.
 
 Response (`200 OK`):
@@ -225,7 +275,7 @@ curl http://localhost:8095/api/v1/audit/batches/2026-07-24 \
 
 ### POST /api/v1/audit/batches/{date}/seal
 
-Auth: header `X-Api-Key`
+Auth: Bearer JWT + header `X-Api-Key` — see [Authentication](#authentication)
 Path param: `date` — ISO date, e.g. `2026-07-25`.
 
 Response (`200 OK`): `BatchResponse`, same shape as the GET example above (with `status: "SEALED"`).
@@ -245,7 +295,7 @@ Recomputes the hash chain to prove the trail hasn't been tampered with.
 
 ### GET /api/v1/audit/verify
 
-Auth: header `X-Api-Key`
+Auth: Bearer JWT + header `X-Api-Key` — see [Authentication](#authentication)
 
 Query params (both optional): `fromSeq` (default `1`), `toSeq` (default current head).
 
@@ -271,7 +321,7 @@ curl "http://localhost:8095/api/v1/audit/verify?fromSeq=1&toSeq=5" \
 
 ### GET /api/v1/audit/head
 
-Auth: header `X-Api-Key`
+Auth: Bearer JWT + header `X-Api-Key` — see [Authentication](#authentication)
 
 Response (`200 OK`):
 

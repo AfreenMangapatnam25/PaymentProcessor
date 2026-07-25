@@ -11,7 +11,23 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.time.Instant;
 
-@Component
+/*
+ * Bean name is set explicitly to "userRequestContextFilter".
+ *
+ * Spring Boot's WebMvcAutoConfiguration already registers a bean literally named
+ * "requestContextFilter" (its own org.springframework.web.filter.RequestContextFilter).
+ * Because this class has the same simple name, the default @Component naming strategy
+ * produces the same bean name, and with bean-definition overriding disabled (the Boot
+ * default) startup fails with:
+ *
+ *   The bean 'requestContextFilter' ... could not be registered. A bean with that name
+ *   has already been defined ... and overriding is disabled.
+ *
+ * Naming this bean explicitly is preferable to setting
+ * spring.main.allow-bean-definition-overriding=true, which would silently let one bean
+ * clobber the other here and anywhere else in the application.
+ */
+@Component("userRequestContextFilter")
 public class RequestContextFilter extends OncePerRequestFilter {
 
     private static final String HEADER_CORRELATION_ID = "X-Correlation-Id";

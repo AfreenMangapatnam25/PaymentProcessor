@@ -18,6 +18,10 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     implementation 'org.springframework.boot:spring-boot-starter-security'
+    // OAuth2 resource server: validates RS256 JWTs from authentication-service against
+    // its JWKS endpoint. (starter-security above is already present and supplies the
+    // core filter chain; this adds the JWT decoder / bearer-token support on top.)
+    implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
     implementation 'org.springframework.cloud:spring-cloud-starter-netflix-eureka-client:4.1.0'
     implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
     runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.11.5'

@@ -47,6 +47,11 @@ dependencies {
     // Messaging (transactional outbox -> Kafka)
     implementation 'org.springframework.kafka:spring-kafka'
 
+    // Resource-server security: validates the RS256 access tokens minted by
+    // authentication-service against its published JWK set (see SecurityConfig).
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
+
     // Operability
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
     implementation 'io.micrometer:micrometer-registry-prometheus'

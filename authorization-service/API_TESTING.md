@@ -15,20 +15,70 @@ registration failure won't block startup. Config Server is optional.
 
 Base URL: http://localhost:8086
 
-Auth model: RS256/HMAC JWT bearer tokens issued by `authentication-service`. Send
-`Authorization: Bearer <accessToken>`. `JwtClaimsFilter` decodes the token (if present) and binds
-an identity to the request context, but does **not** itself reject unauthenticated requests —
-enforcement happens per-endpoint in the service layer (`UnauthenticatedException` /
-`AccessDeniedException` → `401`/`403`). Treat every endpoint below as requiring a bearer token in
-practice, with claims `roles` (default claim name `roles`), `scope`, and `merchant_id` read per
-`security.jwt.*` config. `PaymentAuthorizationController` additionally supports an optional
-`Idempotency-Key` header on `POST /api/v1/authorizations` to dedupe retried authorize calls.
+Auth model: RS256 JWT bearer tokens issued by `authentication-service`. Send
+`Authorization: Bearer <accessToken>`. This service is now an OAuth2 resource server, so an
+unauthenticated request is rejected with `401` at the filter chain — see
+[Authentication](#authentication) below. `JwtClaimsFilter` still runs alongside it, decoding claims
+`roles`, `scope` and `merchant_id` (per `security.jwt.*` config) and binding a domain identity to
+the request context; per-endpoint checks in the service layer still raise
+`UnauthenticatedException` / `AccessDeniedException` → `401`/`403`.
+`PaymentAuthorizationController` additionally supports an optional `Idempotency-Key` header on
+`POST /api/v1/authorizations` to dedupe retried authorize calls.
 
 Seeded sample data (see `src/main/resources/db/seed/V3__seed_sample_data.sql`, local profile only —
 `spring.profiles.default: local` in `application.yml` means this is the effective default profile)
 provides 3 authorization records with fixed UUIDs `11111111-1111-1111-1111-111111111111`,
 `...112`, `...113`, and 3 role assignments referencing the `MERCHANT_ADMIN` / `MERCHANT_VIEWER` /
 `END_USER` roles that ship in `V2__seed_rbac.sql`. Sample ids are used directly below.
+
+## Authentication
+
+This service is now an OAuth2 **resource server**: every endpoint below requires
+`Authorization: Bearer <accessToken>` by default. Tokens are RS256 JWTs issued by
+`authentication-service` (port 8081) and validated locally against its JWKS at
+`http://localhost:8081/.well-known/jwks.json` — signature, issuer, expiry, plus the `purpose`
+claim, which must be `access` (refresh / step-up tokens are rejected). Claims map to authorities
+as `scope` (space-delimited) -> `SCOPE_*`, and `principal_type` (`USER`, `MERCHANT`, `ADMIN`,
+`SERVICE`) -> one `ROLE_*`. See `config/SecurityConfig.java`.
+
+**Getting a token.** Log in against `authentication-service` on port 8081 — password login
+(`POST http://localhost:8081/api/v1/auth/login`) or social login (Google / GitHub / Microsoft).
+The token comes back as `tokens.accessToken`. See `authentication-service/API_TESTING.md` for the
+full password/MFA and OAuth2 social-login flows.
+
+```bash
+TOKEN=$(curl -s -X POST http://localhost:8081/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"alice@example.com","password":"<password>"}' \
+  | jq -r '.tokens.accessToken')
+```
+
+**Testing without a token.** `security.jwt.enabled` (env `SECURITY_JWT_ENABLED`) defaults to
+`true`. The `local` profile document in `application.yml` sets it to `false`, which swaps in a
+permit-all chain. `local` is this service's default profile (`spring.profiles.default: local`),
+so the plain `curl` commands in this guide work as-is.
+Never set it to `false` outside a developer machine or an ephemeral CI container.
+
+**Always public** (no token, in either mode): `/actuator/health/**`, `/actuator/info`,
+`/actuator/prometheus`, `/v3/api-docs/**`, `/swagger-ui/**`, `/swagger-ui.html`, `/error`.
+
+**Alongside the pre-existing claims filter.** `JwtClaimsFilter` / `IdentityContext` are unchanged and
+still run under both chains: the filter decodes the bearer token (claims `roles`, `scope`,
+`merchant_id`, per `security.jwt.*`) and binds a domain identity to the request, and the service layer
+still raises `UnauthenticatedException` / `AccessDeniedException` per endpoint. It never
+short-circuits, so it cannot conflict with the resource-server chain — the resource server is now the
+gate that actually rejects an unauthenticated request with `401`.
+
+**The same call, both ways:**
+
+```bash
+# with the `local` profile (security.jwt.enabled=false) — works as written
+curl http://localhost:8086/api/v1/authorizations/11111111-1111-1111-1111-111111111111
+
+# with the toggle on (the default) — token required
+curl http://localhost:8086/api/v1/authorizations/11111111-1111-1111-1111-111111111111 \
+  -H "Authorization: Bearer $TOKEN"
+```
 
 ---
 

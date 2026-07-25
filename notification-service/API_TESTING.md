@@ -12,10 +12,13 @@ event consumption (optional for direct REST testing). Config Server is optional.
 
 Base URL: `http://localhost:8094` (`server.port` in `application.yml`, override with `SERVER_PORT`)
 
-There is **no authentication enforced** on any endpoint in this service, including the SendGrid
-and Twilio webhook receivers. In production those two receivers should verify the provider's
+Every endpoint requires a JWT bearer token by default — see [Authentication](#authentication)
+below — **except** the two provider webhook receivers
+(`/api/suppressions/webhooks/sendgrid`, `/api/suppressions/webhooks/twilio`), which stay public
+because SendGrid and Twilio cannot present a platform JWT. Those two should verify the provider's
 signature (SendGrid Ed25519 signature header, Twilio `X-Twilio-Signature`) before trusting the
-payload — the controller code explicitly notes this is not implemented yet.
+payload; the controller code explicitly notes this is not implemented yet, so restrict them at the
+network edge.
 
 To exercise the examples below against a local database with realistic data already present, run
 the service with the `local` Spring profile (`SPRING_PROFILES_ACTIVE=local`), which loads
@@ -26,6 +29,53 @@ the service with the `local` Spring profile (`SPRING_PROFILES_ACTIVE=local`), wh
 | Template (`payment.succeeded`, email, en-US, v1)                   | `tmpl_00000000000000000000000000000001` |
 | Webhook endpoint (merchant `11111111-1111-1111-1111-111111111111`) | `we_00000000000000000000000000000001`   |
 | Message (email, delivered, via the template above)                 | `msg_00000000000000000000000000000001`  |
+
+## Authentication
+
+This service is now an OAuth2 **resource server**: every endpoint below requires
+`Authorization: Bearer <accessToken>` by default. Tokens are RS256 JWTs issued by
+`authentication-service` (port 8081) and validated locally against its JWKS at
+`http://localhost:8081/.well-known/jwks.json` — signature, issuer, expiry, plus the `purpose`
+claim, which must be `access` (refresh / step-up tokens are rejected). Claims map to authorities
+as `scope` (space-delimited) -> `SCOPE_*`, and `principal_type` (`USER`, `MERCHANT`, `ADMIN`,
+`SERVICE`) -> one `ROLE_*`. See `config/SecurityConfig.java`.
+
+**Getting a token.** Log in against `authentication-service` on port 8081 — password login
+(`POST http://localhost:8081/api/v1/auth/login`) or social login (Google / GitHub / Microsoft).
+The token comes back as `tokens.accessToken`. See `authentication-service/API_TESTING.md` for the
+full password/MFA and OAuth2 social-login flows.
+
+```bash
+TOKEN=$(curl -s -X POST http://localhost:8081/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"alice@example.com","password":"<password>"}' \
+  | jq -r '.tokens.accessToken')
+```
+
+**Testing without a token.** `security.jwt.enabled` (env `SECURITY_JWT_ENABLED`) defaults to
+`true`. The `local` profile document in `application.yml` sets it to `false`, which swaps in a
+permit-all chain, so with `SPRING_PROFILES_ACTIVE=local` — the profile the seeded-data examples
+below already assume — the plain `curl` commands in this guide work as-is.
+Never set it to `false` outside a developer machine or an ephemeral CI container.
+
+**Always public** (no token, in either mode): `/actuator/health/**`, `/actuator/info`,
+`/actuator/prometheus`, `/v3/api-docs/**`, `/swagger-ui/**`, `/swagger-ui.html`, `/error`.
+
+**Additionally public in this service:** `/api/suppressions/webhooks/sendgrid` and
+`/api/suppressions/webhooks/twilio`. SendGrid and Twilio cannot present a platform JWT, so those two
+receivers stay unauthenticated. Provider signature verification (SendGrid Ed25519,
+Twilio `X-Twilio-Signature`) is **not implemented yet** — restrict them at the network edge.
+
+**The same call, both ways:**
+
+```bash
+# with the `local` profile (security.jwt.enabled=false) — works as written
+curl http://localhost:8094/api/events/evt_00000000000000000000000000000001
+
+# with the toggle on (the default) — token required
+curl http://localhost:8094/api/events/evt_00000000000000000000000000000001 \
+  -H "Authorization: Bearer $TOKEN"
+```
 
 ---
 

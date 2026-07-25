@@ -9,11 +9,12 @@ import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
-import jakarta.persistence.Lob;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import java.time.Instant;
 import java.util.UUID;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 /**
  * A single piece of merchant-supplied evidence attached to a dispute. Documents
@@ -65,7 +66,14 @@ public class Evidence {
     @Column(name = "malware_scanned")
     private boolean malwareScanned;
 
-    @Lob
+    // NOT @Lob. On PostgreSQL, Hibernate 6 maps @Lob String to the "oid" type (a pointer into
+    // pg_largeobject), but V1__init_schema.sql declares this column as TEXT. With
+    // ddl-auto=validate that mismatch aborts startup:
+    //   "wrong column type encountered in column [ocr_text] ... found [text], but expecting [oid]".
+    // LONGVARCHAR is the JDBC type that corresponds to Postgres TEXT, which is also the right
+    // storage choice here - large objects need explicit lifecycle management and cannot be read
+    // in auto-commit mode.
+    @JdbcTypeCode(SqlTypes.LONGVARCHAR)
     @Column(name = "ocr_text")
     private String ocrText;
 

@@ -12,8 +12,8 @@ failure won't block startup. Config Server is optional.
 
 `limit-service` evaluates and reserves transaction-limit capacity. It runs on
 **`server.port: 8085`**, so all examples below target
-`http://localhost:8085`. There is **no authentication** on any endpoint in
-this service.
+`http://localhost:8085`. Every endpoint requires a JWT bearer token by default;
+the `local` profile turns that off — see [Authentication](#authentication).
 
 Examples that reference specific ids use the deterministic sample data
 seeded by `db/seed/V3__seed_sample_data.sql` when running with the `local`
@@ -27,6 +27,48 @@ Spring profile (see that file and the `local` profile document added to
   MERCHANT `MERCH-2001` daily COUNT cap, threshold `100`, SOFT.
 - `usage_counter` id `b0000000-0000-0000-0000-000000000001` — `150.00`
   already reserved today against the customer config above.
+
+## Authentication
+
+This service is now an OAuth2 **resource server**: every endpoint below requires
+`Authorization: Bearer <accessToken>` by default. Tokens are RS256 JWTs issued by
+`authentication-service` (port 8081) and validated locally against its JWKS at
+`http://localhost:8081/.well-known/jwks.json` — signature, issuer, expiry, plus the `purpose`
+claim, which must be `access` (refresh / step-up tokens are rejected). Claims map to authorities
+as `scope` (space-delimited) -> `SCOPE_*`, and `principal_type` (`USER`, `MERCHANT`, `ADMIN`,
+`SERVICE`) -> one `ROLE_*`. See `config/SecurityConfig.java`.
+
+**Getting a token.** Log in against `authentication-service` on port 8081 — password login
+(`POST http://localhost:8081/api/v1/auth/login`) or social login (Google / GitHub / Microsoft).
+The token comes back as `tokens.accessToken`. See `authentication-service/API_TESTING.md` for the
+full password/MFA and OAuth2 social-login flows.
+
+```bash
+TOKEN=$(curl -s -X POST http://localhost:8081/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"alice@example.com","password":"<password>"}' \
+  | jq -r '.tokens.accessToken')
+```
+
+**Testing without a token.** `security.jwt.enabled` (env `SECURITY_JWT_ENABLED`) defaults to
+`true`. The `local` profile document in `application.yml` sets it to `false`, which swaps in a
+permit-all chain, so with `SPRING_PROFILES_ACTIVE=local` — the profile the seeded-data examples
+below already assume — the plain `curl` commands in this guide work as-is.
+Never set it to `false` outside a developer machine or an ephemeral CI container.
+
+**Always public** (no token, in either mode): `/actuator/health/**`, `/actuator/info`,
+`/actuator/prometheus`, `/v3/api-docs/**`, `/swagger-ui/**`, `/swagger-ui.html`, `/error`.
+
+**The same call, both ways:**
+
+```bash
+# with the `local` profile (security.jwt.enabled=false) — works as written
+curl http://localhost:8085/api/v1/limit-configs
+
+# with the toggle on (the default) — token required
+curl http://localhost:8085/api/v1/limit-configs \
+  -H "Authorization: Bearer $TOKEN"
+```
 
 ---
 

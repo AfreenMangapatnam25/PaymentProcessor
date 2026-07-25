@@ -13,7 +13,8 @@ Config Server is optional.
 
 Base URL: `http://localhost:8084` (see `server.port` in `application.yml`)
 
-No authentication/authorization is enforced on any endpoint in this service.
+Every endpoint requires a JWT bearer token by default; the `local` profile turns that off, so the
+examples run as written — see [Authentication](#authentication).
 
 All 7 controllers are generic CRUD wrappers directly over JPA `@Entity` classes — there is no DTO layer, so the
 JSON request/response shape is exactly the entity's fields. Byte array (`byte[]`) fields (ciphertext, nonces,
@@ -29,6 +30,48 @@ Every controller follows the same pattern:
 - `PUT /api/<resource>/{id}` — update
 - `DELETE /api/<resource>/{id}` — delete
 
+## Authentication
+
+This service is now an OAuth2 **resource server**: every endpoint below requires
+`Authorization: Bearer <accessToken>` by default. Tokens are RS256 JWTs issued by
+`authentication-service` (port 8081) and validated locally against its JWKS at
+`http://localhost:8081/.well-known/jwks.json` — signature, issuer, expiry, plus the `purpose`
+claim, which must be `access` (refresh / step-up tokens are rejected). Claims map to authorities
+as `scope` (space-delimited) -> `SCOPE_*`, and `principal_type` (`USER`, `MERCHANT`, `ADMIN`,
+`SERVICE`) -> one `ROLE_*`. See `config/SecurityConfig.java`.
+
+**Getting a token.** Log in against `authentication-service` on port 8081 — password login
+(`POST http://localhost:8081/api/v1/auth/login`) or social login (Google / GitHub / Microsoft).
+The token comes back as `tokens.accessToken`. See `authentication-service/API_TESTING.md` for the
+full password/MFA and OAuth2 social-login flows.
+
+```bash
+TOKEN=$(curl -s -X POST http://localhost:8081/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"alice@example.com","password":"<password>"}' \
+  | jq -r '.tokens.accessToken')
+```
+
+**Testing without a token.** `security.jwt.enabled` (env `SECURITY_JWT_ENABLED`) defaults to
+`true`. The `local` profile document in `application.yml` sets it to `false`, which swaps in a
+permit-all chain, so with `SPRING_PROFILES_ACTIVE=local` — the profile the seeded-data examples
+below already assume — the plain `curl` commands in this guide work as-is.
+Never set it to `false` outside a developer machine or an ephemeral CI container.
+
+**Always public** (no token, in either mode): `/actuator/health/**`, `/actuator/info`,
+`/actuator/prometheus`, `/v3/api-docs/**`, `/swagger-ui/**`, `/swagger-ui.html`, `/error`.
+
+**The same call, both ways:**
+
+```bash
+# with the `local` profile (security.jwt.enabled=false) — works as written
+curl -X GET http://localhost:8084/api/bin-ranges
+
+# with the toggle on (the default) — token required
+curl -X GET http://localhost:8084/api/bin-ranges \
+  -H "Authorization: Bearer $TOKEN"
+```
+
 ---
 
 ## BinRangeController — `/api/bin-ranges`
@@ -38,7 +81,7 @@ the caller since there is no `@GeneratedValue`).
 
 ### GET /api/bin-ranges
 
-Auth: none
+Auth: Bearer JWT — see [Authentication](#authentication)
 
 Response (200):
 
@@ -67,7 +110,7 @@ curl -X GET http://localhost:8084/api/bin-ranges -H "Content-Type: application/j
 
 ### POST /api/bin-ranges
 
-Auth: none
+Auth: Bearer JWT — see [Authentication](#authentication)
 
 Request body:
 
@@ -122,7 +165,7 @@ curl -X POST http://localhost:8084/api/bin-ranges -H "Content-Type: application/
 
 ### GET /api/bin-ranges/{id}
 
-Auth: none
+Auth: Bearer JWT — see [Authentication](#authentication)
 
 Response (200): same shape as above. 404 (empty body) if not found.
 
@@ -134,7 +177,7 @@ curl -X GET http://localhost:8084/api/bin-ranges/1
 
 ### PUT /api/bin-ranges/{id}
 
-Auth: none
+Auth: Bearer JWT — see [Authentication](#authentication)
 
 Request body: full `BinRange` object (see POST). Note: the controller ignores the path `{id}` and simply calls
 `save(entity)` using the `id` in the request body — make sure the body's `id` matches the path id.
@@ -158,7 +201,7 @@ curl -X PUT http://localhost:8084/api/bin-ranges/1 -H "Content-Type: application
 
 ### DELETE /api/bin-ranges/{id}
 
-Auth: none
+Auth: Bearer JWT — see [Authentication](#authentication)
 
 Response: 204 No Content
 
@@ -178,7 +221,7 @@ PAN**; only `last4`/`bin`/`brand` are stored in the clear.
 
 ### GET /api/card-details
 
-Auth: none
+Auth: Bearer JWT — see [Authentication](#authentication)
 
 Response (200):
 
@@ -211,7 +254,7 @@ curl -X GET http://localhost:8084/api/card-details
 
 ### POST /api/card-details
 
-Auth: none
+Auth: Bearer JWT — see [Authentication](#authentication)
 
 Request body (test card `4111111111111111`, Visa test PAN — only ciphertext/last4/bin are actually stored):
 

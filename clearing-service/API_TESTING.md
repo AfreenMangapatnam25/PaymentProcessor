@@ -11,11 +11,13 @@ publishing (optional for REST testing). Config Server is optional.
 
 Base URL: http://localhost:8089
 
-> **Auth note:** The `X-Api-Key` header is only required when `clearing.security.api-key-enabled=true`
-> (property `CLEARING_API_KEY_ENABLED`, see `application.yml`). **The default is `false`**, so in the
-> default/local configuration no API key is required. If enabled, send the configured key
+> **Auth note:** two independent gates. A **JWT bearer token** is now required by default
+> (`security.jwt.enabled`, off in the `local` profile) — see [Authentication](#authentication) below.
+> Separately, the `X-Api-Key` header is only required when `clearing.security.api-key-enabled=true`
+> (property `CLEARING_API_KEY_ENABLED`, see `application.yml`). **The default is `false`**, so no API
+> key is required in the default/local configuration. If enabled, send the configured key
 > (`clearing.security.api-key` / `CLEARING_API_KEY`) as `X-Api-Key: <key>` on every request below.
-> There is no dedicated `local` profile override of this flag, so it stays disabled locally unless you
+> There is no dedicated `local` profile override of that flag, so it stays disabled locally unless you
 > explicitly set `CLEARING_API_KEY_ENABLED=true`.
 
 All monetary amounts are integer minor units (e.g. cents). All timestamps are ISO-8601 UTC instants.
@@ -23,6 +25,55 @@ All monetary amounts are integer minor units (e.g. cents). All timestamps are IS
 The examples below assume the database has been seeded via `db/seed/V2__seed_sample_data.sql`, which is
 only applied when the `local` Spring profile is active (`SPRING_PROFILES_ACTIVE=local`), since it is wired
 in via a `local`-profile-only `spring.flyway.locations` override.
+
+## Authentication
+
+This service is now an OAuth2 **resource server**: every endpoint below requires
+`Authorization: Bearer <accessToken>` by default. Tokens are RS256 JWTs issued by
+`authentication-service` (port 8081) and validated locally against its JWKS at
+`http://localhost:8081/.well-known/jwks.json` — signature, issuer, expiry, plus the `purpose`
+claim, which must be `access` (refresh / step-up tokens are rejected). Claims map to authorities
+as `scope` (space-delimited) -> `SCOPE_*`, and `principal_type` (`USER`, `MERCHANT`, `ADMIN`,
+`SERVICE`) -> one `ROLE_*`. See `config/SecurityConfig.java`.
+
+**Getting a token.** Log in against `authentication-service` on port 8081 — password login
+(`POST http://localhost:8081/api/v1/auth/login`) or social login (Google / GitHub / Microsoft).
+The token comes back as `tokens.accessToken`. See `authentication-service/API_TESTING.md` for the
+full password/MFA and OAuth2 social-login flows.
+
+```bash
+TOKEN=$(curl -s -X POST http://localhost:8081/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"alice@example.com","password":"<password>"}' \
+  | jq -r '.tokens.accessToken')
+```
+
+**Testing without a token.** `security.jwt.enabled` (env `SECURITY_JWT_ENABLED`) defaults to
+`true`. The `local` profile document in `application.yml` sets it to `false`, which swaps in a
+permit-all chain, so with `SPRING_PROFILES_ACTIVE=local` — the profile the seeded-data examples
+below already assume — the plain `curl` commands in this guide work as-is.
+Never set it to `false` outside a developer machine or an ephemeral CI container.
+
+**Always public** (no token, in either mode): `/actuator/health/**`, `/actuator/info`,
+`/actuator/prometheus`, `/v3/api-docs/**`, `/swagger-ui/**`, `/swagger-ui.html`, `/error`.
+
+**Two independent gates.** The optional `X-Api-Key` filter
+(`clearing.security.api-key-enabled` / `CLEARING_API_KEY_ENABLED`, **default `false`**) is kept **in
+addition to** the JWT chain, for machine-to-machine network partners with no platform identity. It is
+off by default and there is no `local`-profile override, so it stays off locally unless you set
+`CLEARING_API_KEY_ENABLED=true`. When on, send `X-Api-Key: <clearing.security.api-key>` as well as the
+bearer token — turning the JWT toggle off does **not** disable the API-key filter.
+
+**The same call, both ways:**
+
+```bash
+# with the `local` profile (security.jwt.enabled=false) — works as written
+curl http://localhost:8089/api/v1/clearing/batches/11111111-1111-1111-1111-111111111111
+
+# with the toggle on (the default) — token required
+curl http://localhost:8089/api/v1/clearing/batches/11111111-1111-1111-1111-111111111111 \
+  -H "Authorization: Bearer $TOKEN"
+```
 
 ---
 
@@ -42,7 +93,7 @@ Query params:
 - `page` (optional, default `0`)
 - `size` (optional, default `50`, max `200`)
 
-Auth: `X-Api-Key` required only if `clearing.security.api-key-enabled=true`.
+Auth: Bearer JWT (see [Authentication](#authentication)); `X-Api-Key` additionally required only if enabled.
 
 Response body (`PageResponse<ClearingBatchResponse>`):
 
@@ -93,7 +144,7 @@ curl "http://localhost:8089/api/v1/clearing/batches?status=COMPLETED&network=VIS
 
 Get a batch by id.
 
-Auth: `X-Api-Key` required only if enabled.
+Auth: Bearer JWT (see [Authentication](#authentication)); `X-Api-Key` additionally required only if enabled.
 
 Response body: same shape as one element of `content` above.
 
@@ -107,7 +158,7 @@ curl "http://localhost:8089/api/v1/clearing/batches/11111111-1111-1111-1111-1111
 
 Get a batch by its unique reference string.
 
-Auth: `X-Api-Key` required only if enabled.
+Auth: Bearer JWT (see [Authentication](#authentication)); `X-Api-Key` additionally required only if enabled.
 
 curl:
 
@@ -119,7 +170,7 @@ curl "http://localhost:8089/api/v1/clearing/batches/reference/BATCH-VISA-2026072
 
 Get the generated clearing file metadata for a batch.
 
-Auth: `X-Api-Key` required only if enabled.
+Auth: Bearer JWT (see [Authentication](#authentication)); `X-Api-Key` additionally required only if enabled.
 
 Response body (`ClearingFileResponse`):
 
@@ -149,7 +200,7 @@ curl "http://localhost:8089/api/v1/clearing/batches/11111111-1111-1111-1111-1111
 
 List the transactions in a batch.
 
-Auth: `X-Api-Key` required only if enabled.
+Auth: Bearer JWT (see [Authentication](#authentication)); `X-Api-Key` additionally required only if enabled.
 
 Response body: `List<ClearingTransactionResponse>` (see shape under Clearing Transactions below).
 
@@ -163,7 +214,7 @@ curl "http://localhost:8089/api/v1/clearing/batches/11111111-1111-1111-1111-1111
 
 List rejected transactions in a batch.
 
-Auth: `X-Api-Key` required only if enabled.
+Auth: Bearer JWT (see [Authentication](#authentication)); `X-Api-Key` additionally required only if enabled.
 
 curl:
 
@@ -175,7 +226,7 @@ curl "http://localhost:8089/api/v1/clearing/batches/11111111-1111-1111-1111-1111
 
 Get the audit trail for a batch (404 if the batch does not exist).
 
-Auth: `X-Api-Key` required only if enabled.
+Auth: Bearer JWT (see [Authentication](#authentication)); `X-Api-Key` additionally required only if enabled.
 
 Response body (`List<AuditEntryResponse>`):
 
@@ -209,7 +260,7 @@ curl "http://localhost:8089/api/v1/clearing/batches/11111111-1111-1111-1111-1111
 
 Trigger formation of clearing batches from pending transactions.
 
-Auth: `X-Api-Key` required only if enabled.
+Auth: Bearer JWT (see [Authentication](#authentication)); `X-Api-Key` additionally required only if enabled.
 
 Request body: none.
 
@@ -258,7 +309,7 @@ curl -X POST "http://localhost:8089/api/v1/clearing/batches/form"
 
 Manually submit a `VALIDATED` batch to the external clearing application.
 
-Auth: `X-Api-Key` required only if enabled.
+Auth: Bearer JWT (see [Authentication](#authentication)); `X-Api-Key` additionally required only if enabled.
 
 Request body: none.
 
@@ -281,7 +332,7 @@ Controller: `ClearingTransactionController` — base path `/api/v1/clearing/tran
 Ingest a transaction for clearing. **Idempotent on `sourceTransactionId`** — re-posting the same
 `sourceTransactionId` returns the existing transaction rather than creating a duplicate.
 
-Auth: `X-Api-Key` required only if enabled.
+Auth: Bearer JWT (see [Authentication](#authentication)); `X-Api-Key` additionally required only if enabled.
 
 Request body (`IngestTransactionRequest`):
 
@@ -361,7 +412,7 @@ curl -X POST "http://localhost:8089/api/v1/clearing/transactions" \
 
 Get a transaction by id.
 
-Auth: `X-Api-Key` required only if enabled.
+Auth: Bearer JWT (see [Authentication](#authentication)); `X-Api-Key` additionally required only if enabled.
 
 curl:
 
@@ -373,7 +424,7 @@ curl "http://localhost:8089/api/v1/clearing/transactions/22222222-2222-2222-2222
 
 Get a transaction by its source transaction id (the idempotency key used on ingest).
 
-Auth: `X-Api-Key` required only if enabled.
+Auth: Bearer JWT (see [Authentication](#authentication)); `X-Api-Key` additionally required only if enabled.
 
 curl:
 
@@ -391,7 +442,7 @@ Query params:
 - `page` (optional, default `0`)
 - `size` (optional, default `50`, max `200`)
 
-Auth: `X-Api-Key` required only if enabled.
+Auth: Bearer JWT (see [Authentication](#authentication)); `X-Api-Key` additionally required only if enabled.
 
 Response body (`PageResponse<ClearingTransactionResponse>`):
 
@@ -439,7 +490,7 @@ curl "http://localhost:8089/api/v1/clearing/transactions?status=PENDING&page=0&s
 
 Cancel a transaction that has not yet been cleared.
 
-Auth: `X-Api-Key` required only if enabled.
+Auth: Bearer JWT (see [Authentication](#authentication)); `X-Api-Key` additionally required only if enabled.
 
 Request body: none.
 
@@ -462,7 +513,7 @@ Controller: `AcknowledgementController` — base path `/api/v1/clearing/batches/
 Record an acknowledgement (`ACKNOWLEDGED`/`ACCEPTED`/`REJECTED`/`PARTIAL`) for a submitted batch. For
 `PARTIAL` acknowledgements, `rejectedSourceTransactionIds` identifies the transactions not accepted.
 
-Auth: `X-Api-Key` required only if enabled.
+Auth: Bearer JWT (see [Authentication](#authentication)); `X-Api-Key` additionally required only if enabled.
 
 Request body (`AcknowledgementRequest`):
 
@@ -516,7 +567,7 @@ curl -X POST "http://localhost:8089/api/v1/clearing/batches/11111111-1111-1111-1
 
 List acknowledgements received for a batch.
 
-Auth: `X-Api-Key` required only if enabled.
+Auth: Bearer JWT (see [Authentication](#authentication)); `X-Api-Key` additionally required only if enabled.
 
 Response body (`List<AcknowledgementResponse>`):
 

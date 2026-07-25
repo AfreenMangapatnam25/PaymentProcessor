@@ -11,10 +11,10 @@ lookups, not the other way around. Fully testable standalone.
 
 Base URL: `http://localhost:8083` (`server.port` in `application.yml`, override with `SERVER_PORT`)
 
-All endpoints are served under `/api/v1/merchants...`. There is **no enforced authentication** on
-this service today — some operations are commented `(admin)` in the controller but nothing actually
-checks a credential or role, so any client can call them. Treat this as a gap to close before
-exposing the service beyond trusted internal networks.
+All endpoints are served under `/api/v1/merchants...`. Every `/api/**` route requires a credential —
+either an **API key** (`Authorization: Bearer <apiKey>` or `X-API-Key`) or a **JWT access token**
+(`Authorization: Bearer <jwt>`) — with admin-only operations gated on the `ADMIN` role. See
+[Authentication](#authentication) below.
 
 To exercise the examples below against a local database with realistic data already present, run
 the service with the `local` Spring profile (`SPRING_PROFILES_ACTIVE=local`), which loads
@@ -29,6 +29,87 @@ the service with the `local` Spring profile (`SPRING_PROFILES_ACTIVE=local`), wh
 
 The examples below use that merchant id (`11111111-1111-1111-1111-111111111111`) wherever a
 GET/list/update against an existing merchant is shown.
+
+## Authentication
+
+This service accepts **two credential types** on the same `Authorization: Bearer` header, and
+either one satisfies a request — they are alternatives, not a required pair.
+
+### 1. JWT access tokens (platform callers)
+
+Standard platform auth: RS256 JWTs issued by `authentication-service` (port 8081), validated
+locally against its JWKS at `http://localhost:8081/.well-known/jwks.json` — signature, issuer,
+expiry, plus the `purpose` claim, which must be `access` (refresh / step-up tokens are rejected).
+
+Get a token by password login or social login (Google / GitHub / Microsoft) — see
+`authentication-service/API_TESTING.md` for the full OAuth2 flow:
+
+```bash
+TOKEN=$(curl -s -X POST http://localhost:8081/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"alice@example.com","password":"<password>"}' \
+  | jq -r '.tokens.accessToken')
+```
+
+Token claims map onto this service's role vocabulary (`config/SecurityConfig.java`):
+
+| Claim | Authority |
+|---|---|
+| `scope` (space-delimited) | `SCOPE_*` — platform standard |
+| `principal_type` | `ROLE_USER` / `ROLE_MERCHANT` / `ROLE_ADMIN` / `ROLE_SERVICE` |
+| *(derived)* | `ROLE_READ` — always, any authenticated principal may read |
+| *(derived)* | `ROLE_WRITE` — only for `ADMIN`/`MERCHANT`/`SERVICE` principals, or a token carrying `admin`, `*:write`, `*:admin` or `merchant:self` scope |
+
+That last derivation exists because the URL rules below predate JWT support and are written in the
+API key's coarse READ/WRITE vocabulary. It's deliberately conservative: a plain `user:self` token
+can read merchant records but not mutate them.
+
+### 2. API keys (merchant server-side integrations)
+
+The pre-existing stateless API-key gate (`ApiKeyAuthFilter` + `ApiKeyAuthenticator`), for merchant
+integrations with no interactive user to log in. Presented as `Authorization: Bearer <apiKey>` or
+`X-API-Key: <apiKey>`:
+
+- the platform admin key (`merchant-service.security.admin-api-key` / `MERCHANT_ADMIN_API_KEY`,
+  default `admin_local_dev_key_change_me`) grants `ADMIN` + `READ` + `WRITE`;
+- a merchant key, formatted `<keyId>.<secret>`, is looked up in `api_keys` and must be `ACTIVE`,
+  unexpired and within its IP allowlist. `READ_ONLY` keys get `MERCHANT` + `READ`; others also get
+  `WRITE`.
+
+Authorization rules: `POST /api/v1/merchants`, `/api/v1/merchants/*/status`,
+`/api/v1/merchants/*/kyb/cases/*/decision`, `/api/v1/merchants/*/pricing-plan` and
+`PUT /api/v1/merchants/*/fees` require `ADMIN`; other `GET /api/**` needs `READ` or `ADMIN`; every
+other `/api/**` verb needs `WRITE` or `ADMIN`. Failures return the standard `ApiError` body as
+`401 unauthorized` / `403 forbidden`.
+
+**Public** (no credential): `/actuator/health/**`, `/actuator/info`, `/actuator/prometheus`,
+`/v3/api-docs/**`, `/swagger-ui/**`, `/swagger-ui.html`, `/error`.
+
+### How the two coexist
+
+Both credentials arrive on `Authorization: Bearer`, so `ApiKeyAuthFilter` inspects the value's
+shape: anything with three dot-separated segments (a JWS compact serialisation) is left to the
+resource server, and everything else is treated as an API key. API keys issued by this service are
+opaque strings that never contain two dots, so the namespaces don't overlap.
+
+**Testing without the authentication service.** `security.jwt.enabled` (env
+`SECURITY_JWT_ENABLED`) defaults to `true`; the `local` profile sets it to `false`. Note this is
+**not** a permit-all escape hatch as it is in the other services — turning it off only removes the
+JWT path. **API-key authentication stays enforced**, because it doesn't depend on the
+authentication service being reachable. So the examples below work under `local` using the seeded
+admin key, with no token needed.
+
+**The same call, both ways:**
+
+```bash
+# with the seeded admin API key (works in any profile)
+curl http://localhost:8083/api/v1/merchants/11111111-1111-1111-1111-111111111111 \
+  -H "Authorization: Bearer admin_local_dev_key_change_me"
+
+# with a JWT access token (requires security.jwt.enabled=true, the default)
+curl http://localhost:8083/api/v1/merchants/11111111-1111-1111-1111-111111111111 \
+  -H "Authorization: Bearer $TOKEN"
+```
 
 ---
 

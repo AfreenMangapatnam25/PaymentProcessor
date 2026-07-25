@@ -17,7 +17,8 @@ with Flyway. Config Server is optional.
 
 Base URL: `http://localhost:8091` (`server.port` in `application.yml`, overridable via `SERVER_PORT`)
 
-No authentication is required by any endpoint below.
+Every endpoint below requires a JWT bearer token by default; the default `dev` profile turns that
+off, so the examples run as written — see [Authentication](#authentication).
 
 **Profiles**: this service defaults to the `dev` profile (`spring.profiles.active` defaults to
 `dev`), which uses an **H2 in-memory** database (`ddl-auto: update`, Flyway disabled). The
@@ -33,6 +34,52 @@ startup (`spring.sql.init.mode: always`, set only in the `dev` profile block), s
 
 The GET examples below use these seeded ids directly. All monetary values are **minor units**
 (e.g. cents) unless stated otherwise.
+
+## Authentication
+
+This service is now an OAuth2 **resource server**: every endpoint below requires
+`Authorization: Bearer <accessToken>` by default. Tokens are RS256 JWTs issued by
+`authentication-service` (port 8081) and validated locally against its JWKS at
+`http://localhost:8081/.well-known/jwks.json` — signature, issuer, expiry, plus the `purpose`
+claim, which must be `access` (refresh / step-up tokens are rejected). Claims map to authorities
+as `scope` (space-delimited) -> `SCOPE_*`, and `principal_type` (`USER`, `MERCHANT`, `ADMIN`,
+`SERVICE`) -> one `ROLE_*`. See `config/SecurityConfig.java`.
+
+**Getting a token.** Log in against `authentication-service` on port 8081 — password login
+(`POST http://localhost:8081/api/v1/auth/login`) or social login (Google / GitHub / Microsoft).
+The token comes back as `tokens.accessToken`. See `authentication-service/API_TESTING.md` for the
+full password/MFA and OAuth2 social-login flows.
+
+```bash
+TOKEN=$(curl -s -X POST http://localhost:8081/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"alice@example.com","password":"<password>"}' \
+  | jq -r '.tokens.accessToken')
+```
+
+**Testing without a token.** `security.jwt.enabled` (env `SECURITY_JWT_ENABLED`) defaults to
+`true`. Unlike the other services, the escape hatch lives in this service's **`dev`** profile
+document (`spring.profiles.active` defaults to `dev`), which sets it to `false` and swaps in a
+permit-all chain. So a default local run needs no token and the plain `curl` commands in this
+guide work as-is. The `prod` profile deliberately does not override the default, so it requires
+a valid JWT.
+Never set it to `false` outside a developer machine or an ephemeral CI container.
+
+**Always public** (no token, in either mode): `/actuator/health/**`, `/actuator/info`,
+`/actuator/prometheus`, `/v3/api-docs/**`, `/swagger-ui/**`, `/swagger-ui.html`, `/error`.
+
+The permit-all `dev` chain additionally leaves `/h2-console/**` open.
+
+**The same call, both ways:**
+
+```bash
+# with the `dev` profile (security.jwt.enabled=false) — works as written
+curl http://localhost:8091/api/settlement-batches/batch-seed-0001
+
+# with the toggle on (the default) — token required
+curl http://localhost:8091/api/settlement-batches/batch-seed-0001 \
+  -H "Authorization: Bearer $TOKEN"
+```
 
 ---
 

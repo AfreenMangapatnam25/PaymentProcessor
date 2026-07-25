@@ -29,6 +29,20 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
+    # Skip Flyway for ClickHouse (read-only OLAP replica)
+    # Only run migrations on PostgreSQL
+    url: ${POSTGRES_URL:jdbc:postgresql://localhost:5432/reportingservicedb}
+    user: ${POSTGRES_USER:postgres}
+    password: ${POSTGRES_PASSWORD:Mysql@2022}
+  # ---- OAuth2 resource server: verify RS256 JWTs issued by authentication-service ----
+  # Keys are pulled from the JWKS endpoint (cached + rotated automatically by Spring);
+  # issuer-uri pins the expected `iss` claim so tokens from other realms are rejected.
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: ${JWKS_URI:http://localhost:8081/.well-known/jwks.json}
+          issuer-uri: ${JWT_ISSUER:https://auth.paymentprocessor.local}
   mail:
     host: ${SMTP_HOST:localhost}
     port: ${SMTP_PORT:1025}
@@ -46,6 +60,9 @@ spring:
       retries: 5
       properties:
         enable.idempotence: true
+  profiles:
+    active:
+      - local
 
 server:
   port: ${SERVER_PORT:8096}
@@ -54,6 +71,7 @@ server:
 # ---- ClickHouse: read-only OLAP replica (owns nothing) ----
 analytics:
   clickhouse:
+    enabled: ${CLICKHOUSE_ENABLED:false}
     url: ${CLICKHOUSE_URL:jdbc:ch://localhost:8123/analytics}
     username: ${CLICKHOUSE_USER:default}
     password: ${CLICKHOUSE_PASSWORD:}
@@ -95,6 +113,11 @@ management:
     mail:
       enabled: false
 
+# Toggle: lets local/dev runs and the seeded sample data be exercised without a token.
+security:
+  jwt:
+    enabled: ${SECURITY_JWT_ENABLED:true}
+
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
@@ -110,3 +133,9 @@ spring:
       on-profile: local
   flyway:
     locations: classpath:db/migration,classpath:db/seed
+
+# Local profile only: run the seeded report jobs / Swagger UI without a bearer token.
+# Production and every shared environment leave this at the default (true).
+security:
+  jwt:
+    enabled: false

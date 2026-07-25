@@ -4,6 +4,7 @@ import com.clickhouse.jdbc.ClickHouseDataSource;
 import java.sql.SQLException;
 import java.util.Properties;
 import javax.sql.DataSource;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -12,8 +13,10 @@ import org.springframework.jdbc.core.JdbcTemplate;
  * Read-only JDBC access to the ClickHouse OLAP replica.
  * Deliberately separate from the primary (Postgres) DataSource: reports must never
  * touch OLTP, and this connection is scoped to a read-only ClickHouse role.
+ * Only enabled when CLICKHOUSE_ENABLED is true (defaults to false for local dev).
  */
 @Configuration
+@ConditionalOnProperty(name = "analytics.clickhouse.enabled", havingValue = "true", matchIfMissing = false)
 public class ClickHouseConfig {
 
     @Bean(name = "clickHouseDataSource")

@@ -14,17 +14,200 @@ not required to exercise the REST API. Config Server is optional.
 Base URL: http://localhost:8081
 
 Auth model: RS256 JWT bearer tokens issued by this service (`POST /api/v1/auth/login` /
-`/login/mfa`). Send `Authorization: Bearer <accessToken>` on protected routes. `/api/v1/admin/**`
-additionally requires the `ADMIN` role (`hasRole("ADMIN")`) — i.e. the token's roles claim must
-contain `ADMIN`. Public (no token required) routes, per `SecurityConfig`:
+`/login/mfa`, or social login — see below). Send `Authorization: Bearer <accessToken>` on
+protected routes. `/api/v1/admin/**` additionally requires the `ADMIN` role
+(`hasRole("ADMIN")`) — i.e. the token's roles claim must contain `ADMIN`. Public (no token
+required) routes, per `SecurityConfig`:
 
 - `POST /api/v1/auth/login`, `/login/mfa`, `/refresh`, `/logout`, `/token/introspect`
 - `POST /api/v1/passwords/forgot`, `/reset`
 - `POST /api/v1/verification/email/confirm`, `/verification/phone/confirm`
 - `POST /api/v1/api-keys/verify`
+- `GET /api/v1/auth/social/providers`
+- `GET /oauth2/authorization/**`, `GET /login/oauth2/code/**` (social login handshake)
 - `GET /.well-known/jwks.json`, `/actuator/health/**`, `/actuator/info`, `/actuator/prometheus`
 
 Everything else requires a valid bearer token.
+
+---
+
+# Social login (OAuth2: Google / GitHub / Microsoft)
+
+## The flow
+
+This service is both the **OAuth2 client** towards the external providers and the
+**issuer** of the platform's own JWTs. External provider tokens are never passed to other
+services — they are exchanged, once, for a first-party JWT.
+
+```
+User → "Login with Google"
+  │
+  ├─1. Browser GET /oauth2/authorization/google        (this service)
+  │      ↓ 302
+  ├─2. Google consent screen — user grants permission
+  │      ↓ 302 back with ?code=...&state=...
+  ├─3. GET /login/oauth2/code/google                    (this service)
+  │      • exchanges code → provider tokens
+  │      • loads provider userinfo
+  │      • maps external identity → local Identity (link or provision)
+  │      • issues OUR RS256 JWT access token + refresh token
+  │      ↓ 302 to SPA (or JSON body — see below)
+  ├─4. Client holds access_token
+  │
+  └─5. GET any microservice + Authorization: Bearer <jwt>
+         • service validates signature against /.well-known/jwks.json
+         • returns protected data
+```
+
+Step 5 is identical for password logins — downstream services cannot tell the two apart
+(beyond the informational `amr` claim), so no other service needed changes to support
+social login.
+
+## Configuration
+
+Each provider is **optional**. A provider with a blank client id is not registered, and if
+none are configured the service starts normally with password login only. Set credentials
+via environment variables:
+
+| Provider | Env vars |
+|---|---|
+| Google | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` |
+| GitHub | `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` |
+| Microsoft | `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, `MICROSOFT_TENANT` (default `common`) |
+
+Register this **redirect URI** in each provider's developer console:
+
+```
+http://localhost:8081/login/oauth2/code/google
+http://localhost:8081/login/oauth2/code/github
+http://localhost:8081/login/oauth2/code/microsoft
+```
+
+`SOCIAL_REDIRECT_URI` controls how tokens come back:
+
+- **unset (default)** — tokens are returned as a **JSON body**. This is what makes the flow
+  testable without a front end.
+- **set** (e.g. `http://localhost:3000/auth/callback`) — the browser is redirected there
+  with `?access_token=...&refresh_token=...&token_type=Bearer&expires_in=900&session_id=...`.
+  The SPA should read them and immediately `history.replaceState` them out of the URL.
+
+## GET /api/v1/auth/social/providers
+
+Lists which providers are actually configured, so a login page renders only buttons that work.
+
+Auth: none (public — needed to render the login screen).
+
+Response (200):
+
+```json
+[
+  {
+    "provider": "GOOGLE",
+    "displayName": "Google",
+    "authorizationUrl": "/oauth2/authorization/google"
+  },
+  {
+    "provider": "GITHUB",
+    "displayName": "GitHub",
+    "authorizationUrl": "/oauth2/authorization/github"
+  }
+]
+```
+
+Returns `[]` when no provider credentials are configured.
+
+curl:
+
+```bash
+curl http://localhost:8081/api/v1/auth/social/providers
+```
+
+## GET /oauth2/authorization/{google|github|microsoft}
+
+Starts the login. **This must be a top-level browser navigation, not fetch/XHR** — the
+provider's consent screen cannot render inside an XHR response, and the redirect chain
+depends on browser cookies for the CSRF `state` parameter.
+
+```html
+<a href="http://localhost:8081/oauth2/authorization/google">Login with Google</a>
+```
+
+To test manually, paste that URL into a browser. Response is a `302` to the provider.
+
+## GET /login/oauth2/code/{provider}
+
+The provider's callback. **You never call this yourself** — the provider redirects the
+browser here. On success, with `SOCIAL_REDIRECT_URI` unset, it responds:
+
+```json
+{
+  "accessToken": "eyJhbGciOiJSUzI1NiIsImtpZCI6ImF1dGgtazEiLCJ0eXAiOiJKV1QifQ...",
+  "tokenType": "Bearer",
+  "expiresIn": 900,
+  "refreshToken": "rt_8f3a91c2e5b74d06a1c9f4e2b7d3a8c1",
+  "sessionId": "f1e2d3c4-b5a6-4978-8123-0a1b2c3d4e5f"
+}
+```
+
+On failure (user cancels consent, expired code, state mismatch):
+
+```json
+{ "error": "access_denied" }
+```
+
+## Decoded access token
+
+The token issued by social login is shape-identical to a password-login token. `amr`
+is the only tell:
+
+```json
+{
+  "iss": "https://auth.paymentprocessor.local",
+  "aud": "payment-platform",
+  "sub": "9f8e7d6c-5b4a-4321-9876-543210fedcba",
+  "identity_id": "9f8e7d6c-5b4a-4321-9876-543210fedcba",
+  "principal_type": "USER",
+  "purpose": "access",
+  "scope": "user:self",
+  "sid": "c4d5e6f7-a8b9-4012-8345-67890abcdef1",
+  "amr": ["federated", "google"],
+  "jti": "3a2b1c0d-9e8f-4756-8342-1b0a9c8d7e6f",
+  "iat": 1785000000,
+  "nbf": 1785000000,
+  "exp": 1785000900
+}
+```
+
+`purpose: "access"` matters: every resource server rejects tokens whose purpose is not
+`access`, so a refresh token or MFA ticket can never be replayed as an API credential.
+
+## Account resolution — what happens on the server
+
+On each social login, in order:
+
+1. **Known account** — a `social_accounts` row exists for `(provider, provider_user_id)`.
+   Reuse its identity. Steady-state path.
+2. **Account linking** — no link row, but the provider asserts a **verified** email
+   matching an existing identity. Link the provider to that identity rather than creating
+   a duplicate account.
+3. **Provisioning** — neither. Create a new `Identity` (principal type `USER`, no password
+   credential) plus its link row.
+
+**Security note:** step 2 requires a *provider-verified* email. Auto-linking on an
+unverified email is an account-takeover vector — an attacker registers the victim's address
+at a provider that never verifies it and inherits the victim's account. GitHub exposes no
+verification flag in its base userinfo payload, so **GitHub logins never auto-link**; they
+provision a fresh identity instead.
+
+Locked/disabled identities are refused even after a successful provider handshake, so
+federated login cannot be used to route around a suspension.
+
+## Testing without real provider credentials
+
+You cannot complete a real handshake without registering OAuth apps. To exercise
+downstream JWT validation, use password login instead (`POST /api/v1/auth/login`) — it
+produces an equivalent token. Or run the other services with `SECURITY_JWT_ENABLED=false`
+(their `local` profile default), which swaps in a permit-all chain.
 
 Seeded sample data (see `src/main/resources/db/seed/V3__seed_sample_data.sql`, local profile only)
 provides 5 identities with fixed UUIDs `11111111-1111-1111-1111-111111111111` … `...115`, used as

@@ -18,7 +18,7 @@ public class AppConfig {
 
     /** Shared HTTP client used for webhook delivery attempts. */
     @Bean
-    public HttpClient webhookHttpClient() {
+    public HttpClient httpClient() {
         return HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(5))
                 .followRedirects(HttpClient.Redirect.NEVER)

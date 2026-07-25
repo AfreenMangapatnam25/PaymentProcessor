@@ -19,6 +19,9 @@ public class AuthProperties {
     private final Reset reset = new Reset();
     private final Events events = new Events();
     private final Outbox outbox = new Outbox();
+    private final Social social = new Social();
+
+    public Social getSocial() { return social; }
 
     public Jwt getJwt() { return jwt; }
     public Refresh getRefresh() { return refresh; }
@@ -38,6 +41,7 @@ public class AuthProperties {
         private String privateKeyPem = "";
         private String publicKeyPem = "";
         private String keyId = "";
+        private String keyStorePath = "";
         public String getIssuer() { return issuer; }
         public void setIssuer(String issuer) { this.issuer = issuer; }
         public String getAudience() { return audience; }
@@ -50,6 +54,8 @@ public class AuthProperties {
         public void setPublicKeyPem(String publicKeyPem) { this.publicKeyPem = publicKeyPem; }
         public String getKeyId() { return keyId; }
         public void setKeyId(String keyId) { this.keyId = keyId; }
+        public String getKeyStorePath() { return keyStorePath; }
+        public void setKeyStorePath(String keyStorePath) { this.keyStorePath = keyStorePath; }
     }
 
     public static class Refresh {
@@ -143,6 +149,66 @@ public class AuthProperties {
         public void setMaxAttempts(int maxAttempts) { this.maxAttempts = maxAttempts; }
         public long getPollIntervalMs() { return pollIntervalMs; }
         public void setPollIntervalMs(long pollIntervalMs) { this.pollIntervalMs = pollIntervalMs; }
+    }
+
+    /**
+     * Social ("Login with Google/GitHub/Microsoft") federation settings, bound from
+     * {@code auth.social.*}.
+     *
+     * <p>Each provider block is optional: a provider with a blank client id is simply
+     * not registered (see
+     * {@link com.paymentprocessor.authenticationservice.config.OAuth2ClientConfig}),
+     * which keeps the service startable with no third-party credentials at all.
+     */
+    public static class Social {
+        private String redirectUri = "";
+        private final ProviderCredentials google = new ProviderCredentials();
+        private final ProviderCredentials github = new ProviderCredentials();
+        private final ProviderCredentials microsoft = new ProviderCredentials();
+
+        /**
+         * @return the SPA callback the browser is redirected to after a successful social
+         *         login, with tokens attached as query parameters. When blank, the tokens
+         *         are instead written directly as a JSON response body, which makes the
+         *         flow testable with curl.
+         */
+        public String getRedirectUri() { return redirectUri; }
+        public void setRedirectUri(String redirectUri) { this.redirectUri = redirectUri; }
+
+        /** @return Google OAuth2 client credentials. */
+        public ProviderCredentials getGoogle() { return google; }
+        /** @return GitHub OAuth2 client credentials. */
+        public ProviderCredentials getGithub() { return github; }
+        /** @return Microsoft (Azure AD) OAuth2 client credentials. */
+        public ProviderCredentials getMicrosoft() { return microsoft; }
+    }
+
+    /**
+     * Client credentials for a single external identity provider.
+     *
+     * <p>These are secrets: supply them via environment variables or a secrets manager,
+     * never by committing them to {@code application.yml}.
+     */
+    public static class ProviderCredentials {
+        private String clientId = "";
+        private String clientSecret = "";
+        private String tenant = "";
+
+        /** @return the OAuth2 client id issued by the provider; blank disables the provider. */
+        public String getClientId() { return clientId; }
+        public void setClientId(String clientId) { this.clientId = clientId; }
+
+        /** @return the OAuth2 client secret issued by the provider. */
+        public String getClientSecret() { return clientSecret; }
+        public void setClientSecret(String clientSecret) { this.clientSecret = clientSecret; }
+
+        /**
+         * @return the Azure AD tenant id for Microsoft logins. Defaults to {@code common}
+         *         (personal + any organisational account) when blank. Ignored by the other
+         *         providers.
+         */
+        public String getTenant() { return tenant; }
+        public void setTenant(String tenant) { this.tenant = tenant; }
     }
 
     public static class Events {

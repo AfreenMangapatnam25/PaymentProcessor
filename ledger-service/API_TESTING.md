@@ -10,8 +10,8 @@ other way around. Fully testable standalone.
 
 `ledger-service` is an immutable, append-only double-entry ledger. It runs on
 **`server.port: 8092`** (override via `SERVER_PORT`), so all examples below
-target `http://localhost:8092`. There is **no authentication** on any
-endpoint in this service.
+target `http://localhost:8092`. Every endpoint requires a JWT bearer token by
+default; the `local` profile turns that off — see [Authentication](#authentication).
 
 Examples that reference specific ids (`1101`, `ACC-CUST-0001`,
 `JRNL-SEED-0001`, `PERIOD-2026`, ...) use the deterministic sample data
@@ -20,6 +20,48 @@ Spring profile (see that file and the `local` profile document added to
 `application.yml`, which points `spring.flyway.locations` at
 `classpath:db/migration,classpath:db/seed`). `1101` (Cash - Settlement
 Account) and `PERIOD-2026` come from the pre-existing `V2__seed_reference_data.sql`.
+
+## Authentication
+
+This service is now an OAuth2 **resource server**: every endpoint below requires
+`Authorization: Bearer <accessToken>` by default. Tokens are RS256 JWTs issued by
+`authentication-service` (port 8081) and validated locally against its JWKS at
+`http://localhost:8081/.well-known/jwks.json` — signature, issuer, expiry, plus the `purpose`
+claim, which must be `access` (refresh / step-up tokens are rejected). Claims map to authorities
+as `scope` (space-delimited) -> `SCOPE_*`, and `principal_type` (`USER`, `MERCHANT`, `ADMIN`,
+`SERVICE`) -> one `ROLE_*`. See `config/SecurityConfig.java`.
+
+**Getting a token.** Log in against `authentication-service` on port 8081 — password login
+(`POST http://localhost:8081/api/v1/auth/login`) or social login (Google / GitHub / Microsoft).
+The token comes back as `tokens.accessToken`. See `authentication-service/API_TESTING.md` for the
+full password/MFA and OAuth2 social-login flows.
+
+```bash
+TOKEN=$(curl -s -X POST http://localhost:8081/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"alice@example.com","password":"<password>"}' \
+  | jq -r '.tokens.accessToken')
+```
+
+**Testing without a token.** `security.jwt.enabled` (env `SECURITY_JWT_ENABLED`) defaults to
+`true`. The `local` profile document in `application.yml` sets it to `false`, which swaps in a
+permit-all chain. `spring.profiles.active` already defaults to `local` here, so the plain
+`curl` commands in this guide work as-is.
+Never set it to `false` outside a developer machine or an ephemeral CI container.
+
+**Always public** (no token, in either mode): `/actuator/health/**`, `/actuator/info`,
+`/actuator/prometheus`, `/v3/api-docs/**`, `/swagger-ui/**`, `/swagger-ui.html`, `/error`.
+
+**The same call, both ways:**
+
+```bash
+# with the `local` profile (security.jwt.enabled=false) — works as written
+curl http://localhost:8092/api/v1/accounts/ACC-CUST-0001
+
+# with the toggle on (the default) — token required
+curl http://localhost:8092/api/v1/accounts/ACC-CUST-0001 \
+  -H "Authorization: Bearer $TOKEN"
+```
 
 ---
 

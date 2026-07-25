@@ -45,6 +45,8 @@ dependencies {
 
     // Security
     implementation 'org.springframework.boot:spring-boot-starter-security'
+    // Validates RS256 access tokens from authentication-service against its JWK set.
+    implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
 
     // Messaging
     implementation 'org.springframework.kafka:spring-kafka'

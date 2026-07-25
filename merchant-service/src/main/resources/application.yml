@@ -42,6 +42,18 @@ spring:
         max.in.flight.requests.per.connection: 5
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.apache.kafka.common.serialization.StringSerializer
+  # OAuth2 resource server. Access tokens are minted by authentication-service
+  # (social / password login) and signed RS256; we verify them locally against its
+  # published JWK set, so no network call to the auth service is needed per request.
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: ${JWKS_URI:http://localhost:8081/.well-known/jwks.json}
+          issuer-uri: ${JWT_ISSUER:https://auth.paymentprocessor.local}
+  profiles:
+    active:
+      - local
 
 server:
   port: ${SERVER_PORT:8083}
@@ -87,6 +99,11 @@ logging:
   level:
     com.paymentprocessor.merchantservice: ${APP_LOG_LEVEL:INFO}
 
+# Toggle: lets local/dev runs and the seeded sample data be exercised without a token.
+security:
+  jwt:
+    enabled: ${SECURITY_JWT_ENABLED:true}
+
 ---
 # Local/dev only: also run the db/seed migrations (sample merchant + related rows)
 # after db/migration. Activate with SPRING_PROFILES_ACTIVE=local. Never enabled by
@@ -97,3 +114,9 @@ spring:
       on-profile: local
   flyway:
     locations: classpath:db/migration,classpath:db/seed
+
+# Local/dev runs are exercised against seeded sample data with plain curl, so the
+# JWT resource-server chain is swapped for a permit-all chain here (never in prod).
+security:
+  jwt:
+    enabled: false

@@ -16,7 +16,7 @@ end-to-end test.
 **Infrastructure:** Postgres (`disputeservicedb`). Config Server is optional.
 
 Base URL: http://localhost:8090
-Auth: none
+Auth: Bearer JWT — see [Authentication](#authentication)
 
 Run with the `local` Spring profile (`SPRING_PROFILES_ACTIVE=local`) to load the seed data in
 `src/main/resources/db/seed/V2__seed_sample_data.sql`. All path-param examples below use the
@@ -29,13 +29,55 @@ Seed reference ids:
 - Evidence: `22222222-2222-2222-2222-222222222221` .. `222222222224`
 - Representments: `44444444-4444-4444-4444-444444444441` .. `444444444443`
 
+## Authentication
+
+This service is now an OAuth2 **resource server**: every endpoint below requires
+`Authorization: Bearer <accessToken>` by default. Tokens are RS256 JWTs issued by
+`authentication-service` (port 8081) and validated locally against its JWKS at
+`http://localhost:8081/.well-known/jwks.json` — signature, issuer, expiry, plus the `purpose`
+claim, which must be `access` (refresh / step-up tokens are rejected). Claims map to authorities
+as `scope` (space-delimited) -> `SCOPE_*`, and `principal_type` (`USER`, `MERCHANT`, `ADMIN`,
+`SERVICE`) -> one `ROLE_*`. See `config/SecurityConfig.java`.
+
+**Getting a token.** Log in against `authentication-service` on port 8081 — password login
+(`POST http://localhost:8081/api/v1/auth/login`) or social login (Google / GitHub / Microsoft).
+The token comes back as `tokens.accessToken`. See `authentication-service/API_TESTING.md` for the
+full password/MFA and OAuth2 social-login flows.
+
+```bash
+TOKEN=$(curl -s -X POST http://localhost:8081/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"alice@example.com","password":"<password>"}' \
+  | jq -r '.tokens.accessToken')
+```
+
+**Testing without a token.** `security.jwt.enabled` (env `SECURITY_JWT_ENABLED`) defaults to
+`true`. The `local` profile document in `application.yml` sets it to `false`, which swaps in a
+permit-all chain, so with `SPRING_PROFILES_ACTIVE=local` — the profile the seeded-data examples
+below already assume — the plain `curl` commands in this guide work as-is.
+Never set it to `false` outside a developer machine or an ephemeral CI container.
+
+**Always public** (no token, in either mode): `/actuator/health/**`, `/actuator/info`,
+`/actuator/prometheus`, `/v3/api-docs/**`, `/swagger-ui/**`, `/swagger-ui.html`, `/error`.
+
+**The same call, both ways:**
+
+```bash
+# with the `local` profile (security.jwt.enabled=false) — works as written
+curl http://localhost:8090/api/v1/disputes/11111111-1111-1111-1111-111111111113
+
+# with the toggle on (the default) — token required
+curl http://localhost:8090/api/v1/disputes/11111111-1111-1111-1111-111111111113 \
+  -H "Authorization: Bearer $TOKEN"
+```
+
 ---
 
 ## Dispute
 
 ### POST /api/v1/disputes
 
-Auth: none
+Auth: Bearer JWT — see [Authentication](#authentication)
 
 Opens a new dispute from an inbound chargeback / retrieval notification.
 
@@ -123,7 +165,7 @@ Notes: `network` is one of `VISA, MASTERCARD, AMEX, DISCOVER`; `type` is one of
 
 ### GET /api/v1/disputes
 
-Auth: none
+Auth: Bearer JWT — see [Authentication](#authentication)
 
 Lists disputes, optionally filtered by merchant.
 
@@ -175,7 +217,7 @@ curl "http://localhost:8090/api/v1/disputes?merchantId=MERCH-SEED-01"
 
 ### GET /api/v1/disputes/{id}
 
-Auth: none
+Auth: Bearer JWT — see [Authentication](#authentication)
 
 Full dispute detail: evidence, representments, liability and timeline.
 
@@ -221,7 +263,7 @@ curl http://localhost:8090/api/v1/disputes/11111111-1111-1111-1111-111111111113
 
 ### GET /api/v1/disputes/{id}/status
 
-Auth: none
+Auth: Bearer JWT — see [Authentication](#authentication)
 
 Current status only (returns the same shape as `DisputeResponse`).
 
@@ -235,7 +277,7 @@ curl http://localhost:8090/api/v1/disputes/11111111-1111-1111-1111-111111111111/
 
 ### POST /api/v1/disputes/{id}/request-evidence
 
-Auth: none
+Auth: Bearer JWT — see [Authentication](#authentication)
 
 Requests evidence from the merchant (`OPEN` -> `PENDING_EVIDENCE`). No request body.
 
@@ -251,7 +293,7 @@ curl -X POST http://localhost:8090/api/v1/disputes/11111111-1111-1111-1111-11111
 
 ### POST /api/v1/disputes/{id}/review
 
-Auth: none
+Auth: Bearer JWT — see [Authentication](#authentication)
 
 Moves the dispute into review once evidence is supplied. No request body.
 
@@ -267,7 +309,7 @@ curl -X POST http://localhost:8090/api/v1/disputes/11111111-1111-1111-1111-11111
 
 ### POST /api/v1/disputes/{id}/accept
 
-Auth: none
+Auth: Bearer JWT — see [Authentication](#authentication)
 
 Merchant / platform accepts liability without fighting.
 
@@ -287,7 +329,7 @@ curl -X POST "http://localhost:8090/api/v1/disputes/11111111-1111-1111-1111-1111
 
 ### POST /api/v1/disputes/{id}/close
 
-Auth: none
+Auth: Bearer JWT — see [Authentication](#authentication)
 
 Closes a resolved dispute. No request body.
 
@@ -305,7 +347,7 @@ curl -X POST http://localhost:8090/api/v1/disputes/11111111-1111-1111-1111-11111
 
 ### GET /api/v1/disputes/{disputeId}/timeline
 
-Auth: none
+Auth: Bearer JWT — see [Authentication](#authentication)
 
 Returns the full audit timeline for a dispute, oldest first.
 
@@ -348,7 +390,7 @@ curl http://localhost:8090/api/v1/disputes/11111111-1111-1111-1111-111111111116/
 
 ### POST /api/v1/disputes/{disputeId}/evidence
 
-Auth: none
+Auth: Bearer JWT — see [Authentication](#authentication)
 
 Registers an uploaded evidence document against a dispute. Binary content is streamed to the
 document store separately; this endpoint only registers the metadata.
@@ -411,7 +453,7 @@ DEVICE_FINGERPRINT, TERMS_OF_SERVICE, PRODUCT_DESCRIPTION, CANCELLATION_PROOF, O
 
 ### GET /api/v1/disputes/{disputeId}/evidence
 
-Auth: none
+Auth: Bearer JWT — see [Authentication](#authentication)
 
 Lists all evidence for a dispute.
 
@@ -425,7 +467,7 @@ curl http://localhost:8090/api/v1/disputes/11111111-1111-1111-1111-111111111113/
 
 ### GET /api/v1/evidence/{evidenceId}
 
-Auth: none
+Auth: Bearer JWT — see [Authentication](#authentication)
 
 Retrieves a single evidence document.
 
@@ -441,7 +483,7 @@ curl http://localhost:8090/api/v1/evidence/22222222-2222-2222-2222-222222222222
 
 ### POST /api/v1/evidence/{evidenceId}/review
 
-Auth: none
+Auth: Bearer JWT — see [Authentication](#authentication)
 
 Records a review decision (accept / reject) on a document.
 
@@ -475,7 +517,7 @@ curl -X POST http://localhost:8090/api/v1/evidence/22222222-2222-2222-2222-22222
 
 ### GET /api/v1/disputes/{disputeId}/liability
 
-Auth: none
+Auth: Bearer JWT — see [Authentication](#authentication)
 
 The current (latest) financial impact record for a dispute.
 
@@ -509,7 +551,7 @@ curl http://localhost:8090/api/v1/disputes/11111111-1111-1111-1111-111111111113/
 
 ### GET /api/v1/disputes/{disputeId}/liability/history
 
-Auth: none
+Auth: Bearer JWT — see [Authentication](#authentication)
 
 The full history of financial impact records for a dispute.
 
@@ -525,7 +567,7 @@ curl http://localhost:8090/api/v1/disputes/11111111-1111-1111-1111-111111111115/
 
 ### GET /api/v1/reason-codes
 
-Auth: none
+Auth: Bearer JWT — see [Authentication](#authentication)
 
 All catalogued reason codes.
 
@@ -556,7 +598,7 @@ curl http://localhost:8090/api/v1/reason-codes
 
 ### GET /api/v1/reason-codes/{network}
 
-Auth: none
+Auth: Bearer JWT — see [Authentication](#authentication)
 
 Reason codes for a specific network. `network` is one of `VISA, MASTERCARD, AMEX, DISCOVER`.
 
@@ -570,7 +612,7 @@ curl http://localhost:8090/api/v1/reason-codes/VISA
 
 ### GET /api/v1/reason-codes/{network}/{code}
 
-Auth: none
+Auth: Bearer JWT — see [Authentication](#authentication)
 
 A single reason code for a network.
 
@@ -586,7 +628,7 @@ curl http://localhost:8090/api/v1/reason-codes/VISA/10.4
 
 ### POST /api/v1/disputes/{disputeId}/representments
 
-Auth: none
+Auth: Bearer JWT — see [Authentication](#authentication)
 
 Assembles accepted evidence and submits a representment to the network.
 
@@ -632,7 +674,7 @@ curl -X POST http://localhost:8090/api/v1/disputes/11111111-1111-1111-1111-11111
 
 ### GET /api/v1/disputes/{disputeId}/representments
 
-Auth: none
+Auth: Bearer JWT — see [Authentication](#authentication)
 
 Lists all representments / filings for a dispute.
 
@@ -646,7 +688,7 @@ curl http://localhost:8090/api/v1/disputes/11111111-1111-1111-1111-111111111114/
 
 ### POST /api/v1/disputes/{disputeId}/issuer-response
 
-Auth: none
+Auth: Bearer JWT — see [Authentication](#authentication)
 
 Records the issuer's decision, driving the dispute to won or pre-arbitration.
 
@@ -680,7 +722,7 @@ Notes: `response` is one of `ACCEPTED, REJECTED, ESCALATED`.
 
 ### POST /api/v1/disputes/{disputeId}/arbitration
 
-Auth: none
+Auth: Bearer JWT — see [Authentication](#authentication)
 
 Escalates a rejected dispute to network arbitration.
 
@@ -710,7 +752,7 @@ curl -X POST http://localhost:8090/api/v1/disputes/11111111-1111-1111-1111-11111
 
 ### POST /api/v1/disputes/{disputeId}/arbitration-decision
 
-Auth: none
+Auth: Bearer JWT — see [Authentication](#authentication)
 
 Records the network's binding arbitration decision.
 

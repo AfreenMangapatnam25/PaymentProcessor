@@ -15,8 +15,8 @@ public class WebhookHttpClient {
     private final HttpClient httpClient;
     private final DispatcherProperties dispatcherProperties;
 
-    public WebhookHttpClient(HttpClient webhookHttpClient, DispatcherProperties dispatcherProperties) {
-        this.httpClient = webhookHttpClient;
+    public WebhookHttpClient(HttpClient httpClient, DispatcherProperties dispatcherProperties) {
+        this.httpClient = httpClient;
         this.dispatcherProperties = dispatcherProperties;
     }
 

@@ -22,10 +22,13 @@ Flyway). Config Server is optional.
 
 Base URL: `http://localhost:8087` (`server.port` in `application.yml`, override with `SERVER_PORT`)
 
-There is **no authentication enforced** on any endpoint. The two provider callback endpoints under
-`/v1/callbacks` in particular accept unsigned, unverified requests — in production these must
-verify the card/UPI provider's callback signature before trusting the payload; the controller
-comments call this out explicitly as not implemented.
+Every endpoint requires a JWT bearer token by default — see [Authentication](#authentication)
+below — **except** the two provider callback endpoints under `/v1/callbacks`
+(`/v1/callbacks/upi`, `/v1/callbacks/3ds`), which stay public because the UPI rail and the 3-D
+Secure directory server cannot present a platform JWT. Those two still accept unsigned, unverified
+requests — the card/UPI provider's callback signature must be verified before the payload is
+trusted; the controller comments call this out explicitly as not implemented, so restrict them at
+the network edge.
 
 Schema note: this service has **no Flyway migrations**. Hibernate creates the schema
 (`spring.jpa.hibernate.ddl-auto=update`), then `src/main/resources/data.sql` seeds it
@@ -49,6 +52,53 @@ network references.
 
 All three use `merchantId = 11111111-1111-1111-1111-111111111111`, the same id seeded by
 merchant-service's `V2__seed_sample_data.sql`, for cross-service consistency.
+
+## Authentication
+
+This service is now an OAuth2 **resource server**: every endpoint below requires
+`Authorization: Bearer <accessToken>` by default. Tokens are RS256 JWTs issued by
+`authentication-service` (port 8081) and validated locally against its JWKS at
+`http://localhost:8081/.well-known/jwks.json` — signature, issuer, expiry, plus the `purpose`
+claim, which must be `access` (refresh / step-up tokens are rejected). Claims map to authorities
+as `scope` (space-delimited) -> `SCOPE_*`, and `principal_type` (`USER`, `MERCHANT`, `ADMIN`,
+`SERVICE`) -> one `ROLE_*`. See `config/SecurityConfig.java`.
+
+**Getting a token.** Log in against `authentication-service` on port 8081 — password login
+(`POST http://localhost:8081/api/v1/auth/login`) or social login (Google / GitHub / Microsoft).
+The token comes back as `tokens.accessToken`. See `authentication-service/API_TESTING.md` for the
+full password/MFA and OAuth2 social-login flows.
+
+```bash
+TOKEN=$(curl -s -X POST http://localhost:8081/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"alice@example.com","password":"<password>"}' \
+  | jq -r '.tokens.accessToken')
+```
+
+**Testing without a token.** `security.jwt.enabled` (env `SECURITY_JWT_ENABLED`) defaults to
+`true`. The `local` profile document in `application.yml` sets it to `false`, which swaps in a
+permit-all chain, so with `SPRING_PROFILES_ACTIVE=local` — the profile the seeded-data examples
+below already assume — the plain `curl` commands in this guide work as-is.
+Never set it to `false` outside a developer machine or an ephemeral CI container.
+
+**Always public** (no token, in either mode): `/actuator/health/**`, `/actuator/info`,
+`/actuator/prometheus`, `/v3/api-docs/**`, `/swagger-ui/**`, `/swagger-ui.html`, `/error`.
+
+**Additionally public in this service:** `/v1/callbacks/upi` and `/v1/callbacks/3ds`. The UPI rail
+and the 3-D Secure directory server cannot present a platform JWT, so those two receivers stay
+unauthenticated. Callback signature verification is **not implemented yet** — restrict them at the
+network edge.
+
+**The same call, both ways:**
+
+```bash
+# with the `local` profile (security.jwt.enabled=false) — works as written
+curl http://localhost:8087/v1/payments/pi_11111111111111111111111111111111
+
+# with the toggle on (the default) — token required
+curl http://localhost:8087/v1/payments/pi_11111111111111111111111111111111 \
+  -H "Authorization: Bearer $TOKEN"
+```
 
 ---
 

@@ -30,6 +30,17 @@ spring:
   sql:
     init:
       mode: always
+  # OAuth2 resource server. Access tokens are minted by authentication-service
+  # (social / password login) and signed RS256; we verify them locally against its
+  # published JWK set, so no network call to the auth service is needed per request.
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: ${JWKS_URI:http://localhost:8081/.well-known/jwks.json}
+          issuer-uri: ${JWT_ISSUER:https://auth.paymentprocessor.local}
+  profiles:
+    active: local
 
 server:
   port: ${SERVER_PORT:8087}
@@ -93,3 +104,21 @@ authorization:
   expiry:
     card-seconds: ${CARD_AUTH_EXPIRY:604800}
     upi-seconds: ${UPI_AUTH_EXPIRY:300}
+
+# Toggle: lets local/dev runs and the seeded sample data be exercised without a token.
+security:
+  jwt:
+    enabled: ${SECURITY_JWT_ENABLED:true}
+
+---
+# Local/dev profile document. Running the service against the seeded sample data
+# (data.sql) with plain curl means there is no authentication-service handy to mint
+# tokens, so JWT enforcement is turned off here. Never activated in production.
+spring:
+  config:
+    activate:
+      on-profile: local
+
+security:
+  jwt:
+    enabled: false

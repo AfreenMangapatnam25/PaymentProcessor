@@ -3,11 +3,13 @@ package com.paymentprocessor.analytics.config;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.actuate.health.Health;
 import org.springframework.boot.actuate.health.HealthIndicator;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
 /** Surfaces ClickHouse reachability under /actuator/health. */
 @Component("clickHouse")
+@ConditionalOnBean(name = "clickHouseJdbcTemplate")
 public class ClickHouseHealthIndicator implements HealthIndicator {
 
     private final JdbcTemplate clickHouse;

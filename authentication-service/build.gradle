@@ -39,6 +39,11 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     implementation 'org.springframework.boot:spring-boot-starter-security'
+
+    // OAuth2 client: drives the "Login with Google/GitHub/Microsoft" authorization-code
+    // flow. This service acts as the OAuth2 *client* towards the external providers,
+    // then mints its own first-party RS256 JWT for the caller (see SocialLoginService).
+    implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
 

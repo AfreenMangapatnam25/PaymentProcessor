@@ -2,6 +2,8 @@ package com.paymentprocessor.authenticationservice.entity;
 
 import jakarta.persistence.*;
 import java.time.Instant;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 /**
  * A domain event durably staged inside the service's own database, written in the
@@ -30,7 +32,12 @@ public class OutboxEvent {
     @Column(name = "topic", length = 120, nullable = false)
     private String topic;
 
-    @Lob
+    // NOT @Lob: on PostgreSQL Hibernate 6 maps @Lob String to "oid" (a large-object pointer),
+    // but V2__outbox.sql declares this column TEXT. This service runs ddl-auto=none so the
+    // mismatch does not abort startup the way it does in dispute-service, but it would surface
+    // at runtime as "Large Objects may not be used in auto-commit mode". LONGVARCHAR is the
+    // JDBC type matching Postgres TEXT.
+    @JdbcTypeCode(SqlTypes.LONGVARCHAR)
     @Column(name = "payload", nullable = false)
     private String payload;
 

@@ -41,6 +41,9 @@ spring:
         enable.idempotence: true
         max.block.ms: 5000
         spring.json.add.type.headers: true
+  profiles:
+    active:
+      - local
 
 server:
   port: ${SERVER_PORT:8081}
@@ -65,14 +68,47 @@ springdoc:
     path: /swagger-ui.html
 
 auth:
+  # ---------------------------------------------------------------------------
+  # Social login ("Login with Google/GitHub/Microsoft").
+  #
+  # Each provider is OPTIONAL: leaving client-id blank means that provider is not
+  # registered at all, and the service starts normally with password login only.
+  # Supply real credentials via environment variables - never commit them here.
+  #
+  # Register this redirect URI with each provider's developer console:
+  #   http://localhost:8081/login/oauth2/code/{google|github|microsoft}
+  # ---------------------------------------------------------------------------
+  social:
+    # Where the browser is sent after a successful social login, with tokens
+    # attached as query params. Leave BLANK to have the tokens returned as a JSON
+    # response body instead - which is what makes the flow testable with curl.
+    redirect-uri: ${SOCIAL_REDIRECT_URI:}
+    google:
+      client-id: ${GOOGLE_CLIENT_ID:}
+      client-secret: ${GOOGLE_CLIENT_SECRET:}
+    github:
+      client-id: ${GITHUB_CLIENT_ID:}
+      client-secret: ${GITHUB_CLIENT_SECRET:}
+    microsoft:
+      client-id: ${MICROSOFT_CLIENT_ID:}
+      client-secret: ${MICROSOFT_CLIENT_SECRET:}
+      # Azure AD tenant. "common" accepts personal + any organisational account;
+      # set a tenant GUID to restrict logins to a single organisation.
+      tenant: ${MICROSOFT_TENANT:common}
+
   jwt:
     issuer: ${JWT_ISSUER:https://auth.paymentprocessor.local}
     audience: ${JWT_AUDIENCE:payment-platform}
     access-token-ttl: ${JWT_ACCESS_TTL:PT15M}
-    # PEM strings. If both are blank an ephemeral dev keypair is generated at startup.
+    # PEM strings supplied from a secrets manager. This is the production path.
     private-key-pem: ${JWT_PRIVATE_KEY:}
     public-key-pem: ${JWT_PUBLIC_KEY:}
     key-id: ${JWT_KEY_ID:}
+    # Fallback when no PEM is configured: the generated keypair is persisted here and
+    # reloaded on restart, so already-issued tokens keep validating across a bounce.
+    # A file on the app host is a dev convenience, not a secrets store — use the PEMs
+    # above in production.
+    key-store-path: ${JWT_KEY_STORE_PATH:.local-keys/jwt-signing-key.json}
   refresh:
     ttl: ${REFRESH_TTL:P30D}
   outbox:
