@@ -2,3 +2,7 @@ target/
 .idea/
 .vscode/
 *.iml
+
+# Locally-generated JWT signing key (contains a private key; never commit)
+.local-keys/
+**/.local-keys/

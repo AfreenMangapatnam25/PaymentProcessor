@@ -327,3 +327,11 @@ default to `localhost:9092` across every service that produces or consumes event
 `settlement-service` additionally has a `dev` profile that runs entirely on in-memory H2
 with simulated downstream clients, useful for a self-contained demo without standing up
 Postgres or the rest of the platform.
+
+## 7. Service Runners
+
+dispute-service → payment, ledger, settlement, notification
+payment-service → fraud, tokenization, limit
+settlement-service → ledger, merchant
+user-service → authentication-service (for real JWTs; it'll boot without it, just rejects requests)
+gateway-service → authentication-service (JWT validation) + whatever backends you're routing to

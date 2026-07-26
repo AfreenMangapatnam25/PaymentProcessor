@@ -2,7 +2,10 @@
 
 ## Overview
 
-The Authentication Service is the central identity verification authority for the platform. It is responsible for authenticating all actors — users, merchants, and administrators — and managing their credentials, sessions, multi-factor authentication (MFA), and device trust. It operates independently from the User Service, which owns profile and lifecycle data; this service owns only the identity proofing layer.
+The Authentication Service is the central identity verification authority for the platform. It is responsible for
+authenticating all actors — users, merchants, and administrators — and managing their credentials, sessions,
+multi-factor authentication (MFA), and device trust. It operates independently from the User Service, which owns profile
+and lifecycle data; this service owns only the identity proofing layer.
 
 ---
 
@@ -10,14 +13,14 @@ The Authentication Service is the central identity verification authority for th
 
 - [Responsibilities](#responsibilities)
 - [Core Functionalities](#core-functionalities)
-  - [Authentication](#authentication)
-  - [Password Management](#password-management)
-  - [Multi-Factor Authentication (MFA)](#multi-factor-authentication-mfa)
-  - [Session Management](#session-management)
-  - [Token Management](#token-management)
-  - [Device Management](#device-management)
-  - [Account Security](#account-security)
-  - [Verification](#verification)
+    - [Authentication](#authentication)
+    - [Password Management](#password-management)
+    - [Multi-Factor Authentication (MFA)](#multi-factor-authentication-mfa)
+    - [Session Management](#session-management)
+    - [Token Management](#token-management)
+    - [Device Management](#device-management)
+    - [Account Security](#account-security)
+    - [Verification](#verification)
 - [Owned Resources](#owned-resources)
 - [Domain Events](#domain-events)
 - [Integration Notes](#integration-notes)
@@ -26,13 +29,13 @@ The Authentication Service is the central identity verification authority for th
 
 ## Responsibilities
 
-| Concern | Description |
-|---------|-------------|
-| **Identity Verification** | Authenticate credentials and assert identity claims for users, merchants, and administrators. |
-| **Credential Security** | Store and manage password hashes, MFA secrets, and refresh tokens using cryptographic best practices. |
-| **Session Lifecycle** | Issue, validate, refresh, and revoke sessions and tokens across the platform. |
-| **Device Trust** | Register and evaluate device trust levels to support risk-based authentication. |
-| **Account Protection** | Detect and mitigate brute-force attacks through account lockout and failed-login tracking. |
+| Concern                   | Description                                                                                           |
+|---------------------------|-------------------------------------------------------------------------------------------------------|
+| **Identity Verification** | Authenticate credentials and assert identity claims for users, merchants, and administrators.         |
+| **Credential Security**   | Store and manage password hashes, MFA secrets, and refresh tokens using cryptographic best practices. |
+| **Session Lifecycle**     | Issue, validate, refresh, and revoke sessions and tokens across the platform.                         |
+| **Device Trust**          | Register and evaluate device trust levels to support risk-based authentication.                       |
+| **Account Protection**    | Detect and mitigate brute-force attacks through account lockout and failed-login tracking.            |
 
 ---
 
@@ -42,13 +45,14 @@ The Authentication Service is the central identity verification authority for th
 
 The service supports role-based login flows for all platform actors.
 
-| Login Type | Description |
-|------------|-------------|
-| **User Login** | Authenticates end-customers using credentials and optional MFA. |
-| **Merchant Login** | Authenticates merchant accounts with potentially stricter MFA policies. |
-| **Admin Login** | Authenticates platform administrators, typically with mandatory MFA and IP restrictions. |
+| Login Type         | Description                                                                              |
+|--------------------|------------------------------------------------------------------------------------------|
+| **User Login**     | Authenticates end-customers using credentials and optional MFA.                          |
+| **Merchant Login** | Authenticates merchant accounts with potentially stricter MFA policies.                  |
+| **Admin Login**    | Authenticates platform administrators, typically with mandatory MFA and IP restrictions. |
 
 **Login Flow:**
+
 1. Receive credentials (username + password).
 2. Validate credentials against stored password hashes.
 3. Evaluate MFA requirements based on role, device trust, and risk signals.
@@ -62,13 +66,14 @@ The service supports role-based login flows for all platform actors.
 
 Handles the full lifecycle of user credentials.
 
-| Operation | Description |
-|-----------|-------------|
-| **Password Reset** | Secure, time-limited reset flow via email or SMS verification. |
-| **Password Change** | Authenticated users may update their password with re-authentication. |
-| **Password Policy Enforcement** | Enforce complexity, history, and expiration rules. |
+| Operation                       | Description                                                           |
+|---------------------------------|-----------------------------------------------------------------------|
+| **Password Reset**              | Secure, time-limited reset flow via email or SMS verification.        |
+| **Password Change**             | Authenticated users may update their password with re-authentication. |
+| **Password Policy Enforcement** | Enforce complexity, history, and expiration rules.                    |
 
 **Security Considerations:**
+
 - Passwords are never stored in plaintext.
 - Argon2id or bcrypt is used for hashing.
 - Reset tokens are single-use and short-lived.
@@ -79,13 +84,14 @@ Handles the full lifecycle of user credentials.
 
 Provides layered identity assurance beyond passwords.
 
-| MFA Method | Description |
-|------------|-------------|
-| **OTP (One-Time Password)** | Time-based or HMAC-based codes delivered via SMS or email. |
+| MFA Method                              | Description                                                                                   |
+|-----------------------------------------|-----------------------------------------------------------------------------------------------|
+| **OTP (One-Time Password)**             | Time-based or HMAC-based codes delivered via SMS or email.                                    |
 | **TOTP (Time-based One-Time Password)** | RFC 6238 compliant codes generated by authenticator apps (e.g., Google Authenticator, Authy). |
-| **WebAuthn / FIDO2** | Hardware security keys and biometric authenticators for phishing-resistant authentication. |
+| **WebAuthn / FIDO2**                    | Hardware security keys and biometric authenticators for phishing-resistant authentication.    |
 
 **Operations:**
+
 - Enroll MFA method
 - Verify MFA challenge
 - Disable MFA (with re-authentication)
@@ -99,12 +105,12 @@ Provides layered identity assurance beyond passwords.
 
 Tracks and controls active user sessions across devices.
 
-| Capability | Description |
-|------------|-------------|
-| **Session Creation** | Establish a session upon successful login. |
-| **Session Validation** | Verify session validity on every authenticated request. |
-| **Session Termination** | Invalidate sessions on logout, password change, or security event. |
-| **Concurrent Session Control** | Limit or alert on simultaneous sessions per account. |
+| Capability                     | Description                                                        |
+|--------------------------------|--------------------------------------------------------------------|
+| **Session Creation**           | Establish a session upon successful login.                         |
+| **Session Validation**         | Verify session validity on every authenticated request.            |
+| **Session Termination**        | Invalidate sessions on logout, password change, or security event. |
+| **Concurrent Session Control** | Limit or alert on simultaneous sessions per account.               |
 
 ---
 
@@ -112,12 +118,13 @@ Tracks and controls active user sessions across devices.
 
 Issues and manages stateless and stateful tokens for distributed authentication.
 
-| Token Type | Purpose |
-|------------|---------|
-| **JWT (Access Token)** | Short-lived, signed token containing identity claims for API authorization. |
-| **Refresh Token** | Long-lived, opaque token used to obtain new access tokens without re-authentication. |
+| Token Type             | Purpose                                                                              |
+|------------------------|--------------------------------------------------------------------------------------|
+| **JWT (Access Token)** | Short-lived, signed token containing identity claims for API authorization.          |
+| **Refresh Token**      | Long-lived, opaque token used to obtain new access tokens without re-authentication. |
 
 **Refresh Token Behavior:**
+
 - Stored securely and rotated on every use.
 - Bound to the issuing device where possible.
 - Revocable individually or globally (logout-all).
@@ -128,12 +135,12 @@ Issues and manages stateless and stateful tokens for distributed authentication.
 
 Links authentication events to physical or browser-based devices for risk analysis.
 
-| Capability | Description |
-|------------|-------------|
-| **Device Registration** | Record device fingerprint on first login. |
-| **Device Trust** | Assign trust scores based on familiarity, location, and behavior. |
-| **Trusted Device List** | Allow users to view and revoke previously authorized devices. |
-| **New Device Alerts** | Notify users when a login occurs from an unrecognized device. |
+| Capability              | Description                                                       |
+|-------------------------|-------------------------------------------------------------------|
+| **Device Registration** | Record device fingerprint on first login.                         |
+| **Device Trust**        | Assign trust scores based on familiarity, location, and behavior. |
+| **Trusted Device List** | Allow users to view and revoke previously authorized devices.     |
+| **New Device Alerts**   | Notify users when a login occurs from an unrecognized device.     |
 
 ---
 
@@ -141,14 +148,15 @@ Links authentication events to physical or browser-based devices for risk analys
 
 Protects accounts from unauthorized access attempts.
 
-| Capability | Description |
-|------------|-------------|
-| **Account Lockout** | Temporarily disable login after consecutive failed attempts. |
+| Capability                | Description                                                           |
+|---------------------------|-----------------------------------------------------------------------|
+| **Account Lockout**       | Temporarily disable login after consecutive failed attempts.          |
 | **Failed Login Tracking** | Log and analyze failed authentication patterns for anomaly detection. |
-| **Rate Limiting** | Throttle login attempts per IP and per account. |
-| **Logout** | Explicit session termination by the user or system. |
+| **Rate Limiting**         | Throttle login attempts per IP and per account.                       |
+| **Logout**                | Explicit session termination by the user or system.                   |
 
 **Account Lockout Flow:**
+
 1. Increment failed attempt counter on each invalid login.
 2. Lock account after configurable threshold (e.g., 5 attempts).
 3. Publish `AccountLocked` event.
@@ -160,8 +168,8 @@ Protects accounts from unauthorized access attempts.
 
 Handles ownership verification of communication channels.
 
-| Operation | Description |
-|-----------|-------------|
+| Operation              | Description                                                          |
+|------------------------|----------------------------------------------------------------------|
 | **Email Verification** | Confirm email ownership via time-limited, signed verification links. |
 | **Phone Verification** | Confirm phone ownership via OTP delivered through SMS or voice call. |
 
@@ -171,16 +179,17 @@ Handles ownership verification of communication channels.
 
 The Authentication Service is the sole owner of the following data:
 
-| Resource | Description |
-|----------|-------------|
-| **Credentials** | User-provided authentication identifiers (e.g., username, email). |
-| **Password Hashes** | Cryptographically derived representations of user passwords. |
-| **Sessions** | Active and historical session records. |
-| **Refresh Tokens** | Opaque tokens for session renewal. |
-| **MFA Secrets** | Shared secrets, public keys, or credential IDs for MFA methods. |
-| **Devices** | Registered device fingerprints and trust metadata. |
+| Resource            | Description                                                       |
+|---------------------|-------------------------------------------------------------------|
+| **Credentials**     | User-provided authentication identifiers (e.g., username, email). |
+| **Password Hashes** | Cryptographically derived representations of user passwords.      |
+| **Sessions**        | Active and historical session records.                            |
+| **Refresh Tokens**  | Opaque tokens for session renewal.                                |
+| **MFA Secrets**     | Shared secrets, public keys, or credential IDs for MFA methods.   |
+| **Devices**         | Registered device fingerprints and trust metadata.                |
 
-> **Important:** The User Service stores only the `identityId`. All credential and session data lives exclusively within this service.
+> **Important:** The User Service stores only the `identityId`. All credential and session data lives exclusively within
+> this service.
 
 ---
 
@@ -188,13 +197,13 @@ The Authentication Service is the sole owner of the following data:
 
 The Authentication Service publishes the following events for downstream consumers:
 
-| Event | Trigger |
-|-------|---------|
-| `UserLoggedIn` | Successful authentication completed. |
-| `UserLoggedOut` | User-initiated or system-initiated session termination. |
-| `PasswordChanged` | User updates their password. |
-| `MFAEnabled` | Multi-factor authentication is enrolled or activated. |
-| `AccountLocked` | Account is locked due to security policy violation. |
+| Event             | Trigger                                                 |
+|-------------------|---------------------------------------------------------|
+| `UserLoggedIn`    | Successful authentication completed.                    |
+| `UserLoggedOut`   | User-initiated or system-initiated session termination. |
+| `PasswordChanged` | User updates their password.                            |
+| `MFAEnabled`      | Multi-factor authentication is enrolled or activated.   |
+| `AccountLocked`   | Account is locked due to security policy violation.     |
 
 ---
 

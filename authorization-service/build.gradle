@@ -51,6 +51,9 @@ dependencies {
     // Service discovery
     implementation 'org.springframework.cloud:spring-cloud-starter-netflix-eureka-client'
 
+    // Centralized config (Config Server)
+    implementation 'org.springframework.cloud:spring-cloud-starter-config'
+
     // Messaging / events
     implementation 'org.springframework.kafka:spring-kafka'
 
@@ -63,7 +66,13 @@ dependencies {
     // Payment gateway SDK
     implementation "com.stripe:stripe-java:${stripeVersion}"
 
-    // JWT parsing (identity claim extraction)
+    // Resource-server security: validates the RS256 access tokens minted by
+    // authentication-service against its published JWK set (see SecurityConfig).
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
+
+    // JWT parsing (identity claim extraction). Complements - does not replace - the
+    // resource server above: it feeds the domain-level IdentityContext thread-local.
     implementation "io.jsonwebtoken:jjwt-api:${jjwtVersion}"
     runtimeOnly "io.jsonwebtoken:jjwt-impl:${jjwtVersion}"
     runtimeOnly "io.jsonwebtoken:jjwt-jackson:${jjwtVersion}"

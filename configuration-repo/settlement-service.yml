@@ -1,0 +1,10 @@
+# settlement-service uses H2 in the "dev" profile and Postgres in "prod".
+# This only overrides the prod profile's datasource.
+spring:
+  config:
+    activate:
+      on-profile: prod
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/settlementservicedb}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:Mysql@2022}

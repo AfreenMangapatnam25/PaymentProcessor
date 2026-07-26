@@ -18,7 +18,20 @@ repositories {
     mavenCentral()
 }
 
+ext {
+    springCloudVersion = '2023.0.3'
+}
+
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}"
+    }
+}
+
 dependencies {
+    // Centralized config (Config Server)
+    implementation 'org.springframework.cloud:spring-cloud-starter-config'
+
     // Web + JSON
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
@@ -33,6 +46,12 @@ dependencies {
 
     // API documentation (Swagger UI at /swagger-ui.html)
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.6.0'
+
+
+    // Security: OAuth2 resource server. Validates the RS256 access tokens minted by
+    // authentication-service against its published JWK set (see SecurityConfig).
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
 
     // Databases
     runtimeOnly 'org.postgresql:postgresql'

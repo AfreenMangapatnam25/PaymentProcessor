@@ -2,7 +2,9 @@
 
 ## Overview
 
-The User Service is a core platform microservice responsible for managing user identity, profile, contact information, addresses, merchant-scoped customer records, consent, and preferences. It serves as the authoritative source for user-related data while delegating authentication concerns to a dedicated Authentication Service.
+The User Service is a core platform microservice responsible for managing user identity, profile, contact information,
+addresses, merchant-scoped customer records, consent, and preferences. It serves as the authoritative source for
+user-related data while delegating authentication concerns to a dedicated Authentication Service.
 
 ---
 
@@ -11,19 +13,19 @@ The User Service is a core platform microservice responsible for managing user i
 - [Architecture](#architecture)
 - [Aggregates](#aggregates)
 - [Core Functionalities](#core-functionalities)
-  - [User Registration](#user-registration)
-  - [User Profile Management](#user-profile-management)
-  - [Contact Management](#contact-management)
-  - [Address Management](#address-management)
-  - [Customer Management](#customer-management)
-  - [KYC Status](#kyc-status)
-  - [Consent Management](#consent-management)
-  - [User Preferences](#user-preferences)
-  - [User Status & Lifecycle](#user-status--lifecycle)
-  - [Identity Reference](#identity-reference)
-  - [User Search](#user-search)
-  - [User Audit](#user-audit)
-  - [Data Privacy (GDPR)](#data-privacy-gdpr)
+    - [User Registration](#user-registration)
+    - [User Profile Management](#user-profile-management)
+    - [Contact Management](#contact-management)
+    - [Address Management](#address-management)
+    - [Customer Management](#customer-management)
+    - [KYC Status](#kyc-status)
+    - [Consent Management](#consent-management)
+    - [User Preferences](#user-preferences)
+    - [User Status & Lifecycle](#user-status--lifecycle)
+    - [Identity Reference](#identity-reference)
+    - [User Search](#user-search)
+    - [User Audit](#user-audit)
+    - [Data Privacy (GDPR)](#data-privacy-gdpr)
 - [Event Publishing](#event-publishing)
 - [Validation](#validation)
 - [Encryption](#encryption)
@@ -34,19 +36,20 @@ The User Service is a core platform microservice responsible for managing user i
 
 ## Architecture
 
-The service is modeled around **domain-driven aggregates** rather than a single monolithic `User` entity. This separation improves maintainability, scalability, and clarity of bounded contexts.
+The service is modeled around **domain-driven aggregates** rather than a single monolithic `User` entity. This
+separation improves maintainability, scalability, and clarity of bounded contexts.
 
 ### Recommended Aggregates
 
-| Aggregate | Responsibility |
-|-----------|----------------|
-| **User** | Platform identity, lifecycle status, and identity reference. |
+| Aggregate       | Responsibility                                                                              |
+|-----------------|---------------------------------------------------------------------------------------------|
+| **User**        | Platform identity, lifecycle status, and identity reference.                                |
 | **UserProfile** | Personal details such as name, date of birth, gender, nationality, language, and time zone. |
-| **Contact** | Email addresses and phone numbers, including verification status. |
-| **Address** | Multiple physical addresses with default selection support. |
-| **Customer** | Merchant-scoped customer record linked to a platform user. |
-| **Consent** | Terms, privacy, and marketing consent with a full audit trail. |
-| **Preference** | User-specific application preferences (language, currency, theme, notifications). |
+| **Contact**     | Email addresses and phone numbers, including verification status.                           |
+| **Address**     | Multiple physical addresses with default selection support.                                 |
+| **Customer**    | Merchant-scoped customer record linked to a platform user.                                  |
+| **Consent**     | Terms, privacy, and marketing consent with a full audit trail.                              |
+| **Preference**  | User-specific application preferences (language, currency, theme, notifications).           |
 
 ---
 
@@ -57,6 +60,7 @@ The service is modeled around **domain-driven aggregates** rather than a single 
 Handles the creation of platform users.
 
 **Responsibilities:**
+
 - Register a new user
 - Verify email and mobile number
 - Generate a unique user ID
@@ -69,6 +73,7 @@ Handles the creation of platform users.
 Manages personal and demographic information.
 
 **Stored Fields:**
+
 - First Name
 - Last Name
 - Date of Birth (DOB)
@@ -78,6 +83,7 @@ Manages personal and demographic information.
 - Time Zone
 
 **Supported Operations:**
+
 - `Get Profile`
 - `Update Profile`
 - `Partial Update Profile`
@@ -89,11 +95,13 @@ Manages personal and demographic information.
 Maintains communication details with verification tracking.
 
 **Stored Fields:**
+
 - Email
 - Mobile Number
 - Alternate Phone
 
 **Supported Operations:**
+
 - `Add Email`
 - `Verify Email`
 - `Change Email`
@@ -107,12 +115,14 @@ Maintains communication details with verification tracking.
 Supports multiple addresses per user with type classification.
 
 **Address Types:**
+
 - Home
 - Office
 - Billing
 - Shipping
 
 **Supported Operations:**
+
 - `Add Address`
 - `Update Address`
 - `Delete Address`
@@ -122,15 +132,18 @@ Supports multiple addresses per user with type classification.
 
 ### Customer Management
 
-In payment processing, a **customer** is merchant-specific. Even if the same person shops with multiple merchants, they should have distinct customer records.
+In payment processing, a **customer** is merchant-specific. Even if the same person shops with multiple merchants, they
+should have distinct customer records.
 
 **Example:**
+
 ```
 Merchant A  →  Customer 101
 Merchant B  →  Customer 842
 ```
 
 **Supported Operations:**
+
 - `Create Customer`
 - `Get Customer`
 - `Link User`
@@ -140,9 +153,11 @@ Merchant B  →  Customer 842
 
 ### KYC Status
 
-The User Service **does not perform KYC** itself. It only stores and reflects the current KYC status received from the KYC Service.
+The User Service **does not perform KYC** itself. It only stores and reflects the current KYC status received from the
+KYC Service.
 
 **Status Values:**
+
 - `PENDING`
 - `VERIFIED`
 - `FAILED`
@@ -155,6 +170,7 @@ The User Service **does not perform KYC** itself. It only stores and reflects th
 Stores user consent with a full audit history.
 
 **Consent Types:**
+
 - Terms & Conditions accepted
 - Privacy Policy accepted
 - Marketing emails
@@ -168,6 +184,7 @@ Stores user consent with a full audit history.
 Stores user-specific application preferences.
 
 **Preference Types:**
+
 - Language
 - Currency
 - Theme
@@ -180,6 +197,7 @@ Stores user-specific application preferences.
 Tracks the lifecycle state of a user account.
 
 **Status Enum:**
+
 ```java
 enum UserStatus {
     ACTIVE,
@@ -198,11 +216,11 @@ Authentication is delegated to a separate **Authentication Service**.
 
 - **User Service** stores only: `identityId`
 - **Authentication Service** owns:
-  - Password
-  - MFA
-  - Login
-  - Refresh Token
-  - Sessions
+    - Password
+    - MFA
+    - Login
+    - Refresh Token
+    - Sessions
 
 ---
 
@@ -217,6 +235,7 @@ Search users by the following identifiers:
 - Merchant ID
 
 **Features:**
+
 - Pagination supported
 
 ---
@@ -226,6 +245,7 @@ Search users by the following identifiers:
 Tracks all significant changes for compliance and traceability.
 
 **Tracked Events:**
+
 - Profile Updated
 - Address Changed
 - Email Verified
@@ -241,15 +261,18 @@ Supports the following privacy operations:
 - **Data Export** — Provide a complete copy of user data
 - **Data Masking** — Redact sensitive fields in non-production contexts
 - **Soft Delete** — Mark user as deleted without physical removal
-- **Crypto Shredding** — Preferred over hard delete for payment systems; encryption keys are destroyed, rendering data irretrievable
+- **Crypto Shredding** — Preferred over hard delete for payment systems; encryption keys are destroyed, rendering data
+  irretrievable
 
 ---
 
 ## Event Publishing
 
-The service publishes domain events for downstream consumers (e.g., Kafka or RabbitMQ) to update their local read models.
+The service publishes domain events for downstream consumers (e.g., Kafka or RabbitMQ) to update their local read
+models.
 
 **Published Events:**
+
 - `UserCreated`
 - `UserUpdated`
 - `AddressAdded`
@@ -278,6 +301,7 @@ Input validation is enforced across the following dimensions:
 All Personally Identifiable Information (PII) is encrypted at rest.
 
 **Encrypted Fields:**
+
 - Name
 - Date of Birth
 - Email
@@ -293,6 +317,7 @@ All Personally Identifiable Information (PII) is encrypted at rest.
 Each aggregate supports optimistic locking to prevent concurrent update conflicts.
 
 **Versioning Fields:**
+
 - `version`
 - `updatedAt`
 - `updatedBy`
@@ -304,6 +329,7 @@ Each aggregate supports optimistic locking to prevent concurrent update conflict
 Users are **never physically deleted** from the system.
 
 **Soft Delete Fields:**
+
 - `deleted = true`
 - `deletedAt`
 - `deletedBy`
@@ -318,4 +344,5 @@ This service is designed to integrate with:
 - **Java 21**
 - **MongoDB**
 
-It is part of a broader banking application covering transactional concerns such as CRUD operations, entity relationships, N+1 query resolution, optimistic locking, pessimistic locking, MVCC, and write skew scenarios.
+It is part of a broader banking application covering transactional concerns such as CRUD operations, entity
+relationships, N+1 query resolution, optimistic locking, pessimistic locking, MVCC, and write skew scenarios.

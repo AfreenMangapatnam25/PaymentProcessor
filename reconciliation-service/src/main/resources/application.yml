@@ -1,11 +1,21 @@
 spring:
   application:
     name: reconciliation-service
+  config:
+    import: "optional:configserver:${CONFIG_SERVER_URL:http://localhost:8888}"
+  cloud:
+    config:
+      fail-fast: false
+      retry:
+        max-attempts: 6
+        initial-interval: 1500
+        multiplier: 1.5
+        max-interval: 3000
 
   datasource:
-    url: ${DB_URL:jdbc:postgresql://localhost:5432/reconciliation}
-    username: ${DB_USERNAME:recon}
-    password: ${DB_PASSWORD:recon}
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/reconciliationservicedb}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:Mysql@2022}
     hikari:
       maximum-pool-size: ${DB_POOL_SIZE:20}
       minimum-idle: 5
@@ -29,6 +39,16 @@ spring:
     baseline-on-migrate: true
     locations: classpath:db/migration
 
+  # OAuth2 resource-server settings. Tokens are minted by authentication-service
+  # (port 8081); we fetch its public keys from the JWKS endpoint and verify the
+  # RS256 signature plus the issuer on every request.
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: ${JWKS_URI:http://localhost:8081/.well-known/jwks.json}
+          issuer-uri: ${JWT_ISSUER:https://auth.paymentprocessor.local}
+
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     producer:
@@ -39,6 +59,9 @@ spring:
       properties:
         enable.idempotence: true
         spring.json.add.type.headers: false
+  profiles:
+    active:
+      - local
 
 server:
   port: ${SERVER_PORT:8093}
@@ -70,9 +93,28 @@ recon:
       reconciliation-completed: reconciliation.completed
       mismatch-detected: reconciliation.mismatch-detected
 
+# Toggle: lets local/dev runs and the seeded sample data be exercised without a token.
+security:
+  jwt:
+    enabled: ${SECURITY_JWT_ENABLED:true}
+
 kafka:
   enabled: ${KAFKA_ENABLED:true}
 
 topics:
   reconciliation-completed: reconciliation.completed
   mismatch-detected: reconciliation.mismatch-detected
+
+---
+spring:
+  config:
+    activate:
+      on-profile: local
+  flyway:
+    locations: classpath:db/migration,classpath:db/seed
+
+# Local profile only: skip JWT validation so the seeded reconciliation data can be
+# browsed without standing up authentication-service. Never enable this elsewhere.
+security:
+  jwt:
+    enabled: false

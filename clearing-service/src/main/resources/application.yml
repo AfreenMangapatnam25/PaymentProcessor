@@ -1,11 +1,21 @@
 spring:
   application:
     name: clearing-service
+  config:
+    import: "optional:configserver:${CONFIG_SERVER_URL:http://localhost:8888}"
+  cloud:
+    config:
+      fail-fast: false
+      retry:
+        max-attempts: 6
+        initial-interval: 1500
+        multiplier: 1.5
+        max-interval: 3000
 
   datasource:
-    url: ${DB_URL:jdbc:postgresql://localhost:5432/clearing}
-    username: ${DB_USERNAME:clearing}
-    password: ${DB_PASSWORD:clearing}
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/clearingservicedb}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:Mysql@2022}
     hikari:
       pool-name: clearing-pool
       maximum-pool-size: ${DB_POOL_MAX:20}
@@ -30,6 +40,16 @@ spring:
     enabled: true
     baseline-on-migrate: true
 
+  # OAuth2 resource-server settings. Tokens are verified offline against the
+  # authentication service's published JWK set, so no network call to the auth
+  # service is needed per request.
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: ${JWKS_URI:http://localhost:8081/.well-known/jwks.json}
+          issuer-uri: ${JWT_ISSUER:https://auth.paymentprocessor.local}
+
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     producer:
@@ -40,6 +60,9 @@ spring:
         max.in.flight.requests.per.connection: 5
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.apache.kafka.common.serialization.StringSerializer
+  profiles:
+    active:
+      - local
 
 server:
   port: ${SERVER_PORT:8089}
@@ -105,6 +128,27 @@ clearing:
   events:
     topic: ${CLEARING_EVENTS_TOPIC:clearing.events.v1}
   security:
-    # Optional API-key gate for the REST API. Disabled by default.
+    # Optional API-key gate for the REST API, for machine-to-machine network
+    # partners that have no platform identity. Independent of the JWT gate
+    # below - see SecurityConfig for how the two relate. Disabled by default.
     api-key-enabled: ${CLEARING_API_KEY_ENABLED:false}
     api-key: ${CLEARING_API_KEY:}
+
+# Toggle: lets local/dev runs and the seeded sample data be exercised without a token.
+security:
+  jwt:
+    enabled: ${SECURITY_JWT_ENABLED:true}
+
+---
+spring:
+  config:
+    activate:
+      on-profile: local
+  flyway:
+    locations: classpath:db/migration,classpath:db/seed
+
+# Local/dev runs are exercised against seeded sample data with plain curl, so the
+# JWT resource-server chain is swapped for a permit-all chain here (never in prod).
+security:
+  jwt:
+    enabled: false

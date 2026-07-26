@@ -1,11 +1,21 @@
 spring:
   application:
     name: audit-service
+  config:
+    import: "optional:configserver:${CONFIG_SERVER_URL:http://localhost:8888}"
+  cloud:
+    config:
+      fail-fast: false
+      retry:
+        max-attempts: 6
+        initial-interval: 1500
+        multiplier: 1.5
+        max-interval: 3000
 
   datasource:
-    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:audit_db}
-    username: ${DB_USERNAME:audit}
-    password: ${DB_PASSWORD:audit}
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:auditservicedb}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:Mysql@2022}
     driver-class-name: org.postgresql.Driver
     hikari:
       maximum-pool-size: ${DB_POOL_SIZE:20}
@@ -39,6 +49,16 @@ spring:
     listener:
       ack-mode: manual
       concurrency: ${KAFKA_CONCURRENCY:3}
+
+  # OAuth2 resource server. Access tokens are minted by authentication-service
+  # (social / password login) and signed RS256; we verify them locally against its
+  # published JWK set, so no network call to the auth service is needed per request.
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: ${JWKS_URI:http://localhost:8081/.well-known/jwks.json}
+          issuer-uri: ${JWT_ISSUER:https://auth.paymentprocessor.local}
 
 server:
   port: ${SERVER_PORT:8095}
@@ -123,11 +143,25 @@ audit:
     mode: ${AUDIT_ANCHOR_MODE:log}
     endpoint: ${AUDIT_ANCHOR_ENDPOINT:}
 
+# Toggle: lets local/dev runs and the seeded sample data be exercised without a token.
+security:
+  jwt:
+    enabled: ${SECURITY_JWT_ENABLED:true}
+
 ---
 spring:
   config:
     activate:
       on-profile: local
+  flyway:
+    locations: classpath:db/migration,classpath:db/seed
+
+# Local/dev runs are exercised against seeded sample data with plain curl, so the
+# JWT resource-server chain is swapped for a permit-all chain here (never in prod).
+security:
+  jwt:
+    enabled: false
+
 audit:
   security:
     enabled: false

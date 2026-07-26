@@ -15,6 +15,12 @@ import org.springframework.stereotype.Service;
  * {@link SafeQueryBuilder}; nothing downstream trusts raw user input.
  */
 @Service
+// NOTE: no @ConditionalOnBean("clickHouseJdbcTemplate") here.
+// ClickHouse is optional (analytics.clickhouse.enabled defaults to false). Making this
+// bean conditional removed it from the context, which broke unconditional consumers
+// (ReportService / ReportGenerationWorker) and prevented the whole service from starting
+// on Postgres alone. ClickHouseQueryExecutor now guards at call time instead, so an
+// OLAP-backed request fails with a clear message rather than at boot.
 public class QueryBuilderService {
 
     private final DatasetCatalog catalog;

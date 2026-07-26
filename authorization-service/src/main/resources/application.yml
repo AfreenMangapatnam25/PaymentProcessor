@@ -5,12 +5,22 @@
 spring:
   application:
     name: authorization-service
+  config:
+    import: "optional:configserver:${CONFIG_SERVER_URL:http://localhost:8888}"
+  cloud:
+    config:
+      fail-fast: false
+      retry:
+        max-attempts: 6
+        initial-interval: 1500
+        multiplier: 1.5
+        max-interval: 3000
   profiles:
     default: local
   datasource:
-    url: jdbc:postgresql://localhost:5432/authorization_db
+    url: jdbc:postgresql://localhost:5432/authorizationservicedb
     username: postgres
-    password: postgres
+    password: Mysql@2022
     driver-class-name: org.postgresql.Driver
     hikari:
       maximum-pool-size: 20
@@ -39,6 +49,15 @@ spring:
         max.in.flight.requests.per.connection: 5
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+  # OAuth2 resource-server settings. Tokens are verified offline against the
+  # authentication service's published JWK set, so no network call to the auth
+  # service is needed per request.
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: ${JWKS_URI:http://localhost:8081/.well-known/jwks.json}
+          issuer-uri: ${JWT_ISSUER:https://auth.paymentprocessor.local}
 
 server:
   port: 8086
@@ -78,10 +97,22 @@ gateway:
     max-network-retries: 2
 
 # ----------------------------------------------------------------------------
-# Identity token validation (tokens issued by the Authentication Service)
+# Identity token validation (tokens issued by the Authentication Service).
+#
+# This single block feeds TWO consumers, which is why the new resource-server
+# toggle is merged in here rather than declared as a second top-level "security"
+# key (duplicate keys would silently drop one of the mappings):
+#   * "enabled" is read by SecurityConfig via @ConditionalOnProperty and selects
+#     the enforcing JWT filter chain or the permit-all dev chain.
+#   * every other key below binds to JwtProperties (@ConfigurationProperties
+#     prefix = "security.jwt") and drives the pre-existing JwtClaimsFilter that
+#     populates the domain-level IdentityContext. JwtProperties ignores unknown
+#     fields, so "enabled" is inert there.
 # ----------------------------------------------------------------------------
 security:
   jwt:
+    # Toggle: lets local/dev runs and the seeded sample data be exercised without a token.
+    enabled: ${SECURITY_JWT_ENABLED:true}
     verify-signature: true
     hmac-secret: ${JWT_HMAC_SECRET:}
     public-key: ${JWT_PUBLIC_KEY:}
@@ -142,3 +173,19 @@ logging:
   level:
     root: INFO
     com.paymentprocessor: DEBUG
+
+---
+spring:
+  config:
+    activate:
+      on-profile: local
+  flyway:
+    locations: classpath:db/migration,classpath:db/seed
+
+# Local/dev runs are exercised against seeded sample data with plain curl, so the
+# JWT resource-server chain is swapped for a permit-all chain here (never in prod).
+# application-local.yml additionally sets verify-signature: false so the legacy
+# JwtClaimsFilter still decodes any token that is present, without needing a key.
+security:
+  jwt:
+    enabled: false

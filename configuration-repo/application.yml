@@ -1,0 +1,12 @@
+# Global defaults applied to every service before its own <application-name>.yml
+# overrides. Keep this file minimal — most config stays close to the owning
+# service.
+management:
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+logging:
+  pattern:
+    level: "%5p [${spring.application.name:-},%X{traceId:-},%X{spanId:-}]"

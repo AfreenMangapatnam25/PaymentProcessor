@@ -19,9 +19,19 @@ repositories {
 
 ext {
     springdocVersion = '2.6.0'
+    springCloudVersion = '2023.0.3'
+}
+
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}"
+    }
 }
 
 dependencies {
+    // Centralized config (Config Server)
+    implementation 'org.springframework.cloud:spring-cloud-starter-config'
+
     // Web / API
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
@@ -35,6 +45,8 @@ dependencies {
 
     // Security
     implementation 'org.springframework.boot:spring-boot-starter-security'
+    // Validates RS256 access tokens from authentication-service against its JWK set.
+    implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
 
     // Messaging
     implementation 'org.springframework.kafka:spring-kafka'
