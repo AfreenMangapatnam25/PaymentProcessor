@@ -53,7 +53,7 @@ server:
 events:
   kafka:
     enabled: ${EVENTS_KAFKA_ENABLED:true}
-    merchant-events-topic: ${MERCHANT_EVENTS_TOPIC:merchant.events}
+    merchant-events-topic: ${MERCHANT_EVENTS_TOPIC:merchantservicetopic}
 
 # --- Dispatcher (see DispatcherProperties) ----------------------------------
 notification:

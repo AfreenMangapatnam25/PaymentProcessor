@@ -51,7 +51,7 @@ public record ClearingProperties(
     }
 
     public record Events(
-            @DefaultValue("clearing.events.v1") String topic
+            @DefaultValue("clearingservicetopic") String topic
     ) {
     }
 

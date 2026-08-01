@@ -126,7 +126,7 @@ clearing:
     publish-cron: ${CLEARING_OUTBOX_CRON:*/5 * * * * *}
     batch-size: ${CLEARING_OUTBOX_BATCH_SIZE:200}
   events:
-    topic: ${CLEARING_EVENTS_TOPIC:clearing.events.v1}
+    topic: ${CLEARING_EVENTS_TOPIC:clearingservicetopic}
   security:
     # Optional API-key gate for the REST API, for machine-to-machine network
     # partners that have no platform identity. Independent of the JWT gate

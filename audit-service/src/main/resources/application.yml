@@ -111,8 +111,8 @@ audit:
 
   kafka:
     enabled: ${AUDIT_KAFKA_ENABLED:true}
-    topic: ${AUDIT_KAFKA_TOPIC:audit.events}
-    dlt-topic: ${AUDIT_KAFKA_DLT_TOPIC:audit.events.DLT}
+    topic: ${AUDIT_KAFKA_TOPIC:auditservicetopic}
+    dlt-topic: ${AUDIT_KAFKA_DLT_TOPIC:auditservicetopic.DLT}
 
   batch:
     enabled: ${AUDIT_BATCH_ENABLED:true}

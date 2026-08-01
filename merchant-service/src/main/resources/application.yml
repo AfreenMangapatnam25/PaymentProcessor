@@ -84,10 +84,13 @@ merchant-service:
     # Platform/internal admin credential for onboarding, lifecycle and service-to-service callbacks.
     admin-api-key: ${MERCHANT_ADMIN_API_KEY:admin_local_dev_key_change_me}
   events:
-    topic-prefix: ${EVENT_TOPIC_PREFIX:merchant}
+    topic: ${MERCHANT_EVENTS_TOPIC:merchantservicetopic}
   outbox:
     poll-interval-ms: ${OUTBOX_POLL_INTERVAL_MS:2000}
     batch-size: ${OUTBOX_BATCH_SIZE:100}
+  integration:
+    ledger:
+      base-url: ${LEDGER_SERVICE_URL:http://localhost:8092}
 
 springdoc:
   swagger-ui:

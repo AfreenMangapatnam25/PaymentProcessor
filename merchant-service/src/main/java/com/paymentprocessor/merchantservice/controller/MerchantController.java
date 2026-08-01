@@ -54,6 +54,12 @@ public class MerchantController {
         return merchantService.get(merchantId);
     }
 
+    @Operation(summary = "Get a merchant by public reference (used by other platform services)")
+    @GetMapping("/by-reference/{merchantReference}")
+    public MerchantResponse getByReference(@PathVariable String merchantReference) {
+        return merchantService.getByReference(merchantReference);
+    }
+
     @Operation(summary = "Replace merchant profile")
     @PutMapping("/{merchantId}")
     public MerchantResponse update(@PathVariable UUID merchantId,

@@ -537,6 +537,8 @@ resilience4j:
         baseConfig: default
       reconciliationCircuitBreaker:
         baseConfig: default
+      notificationCircuitBreaker:
+        baseConfig: default
       auditCircuitBreaker:
         baseConfig: default
       reportingCircuitBreaker:
@@ -561,6 +563,7 @@ resilience4j:
       settlementCircuitBreaker: { baseConfig: default }
       ledgerCircuitBreaker: { baseConfig: default }
       reconciliationCircuitBreaker: { baseConfig: default }
+      notificationCircuitBreaker: { baseConfig: default }
       auditCircuitBreaker: { baseConfig: default }
       reportingCircuitBreaker: { baseConfig: default }
 

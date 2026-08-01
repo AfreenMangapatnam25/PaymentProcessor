@@ -102,8 +102,8 @@ kafka:
   enabled: ${KAFKA_ENABLED:true}
 
 topics:
-  reconciliation-completed: reconciliation.completed
-  mismatch-detected: reconciliation.mismatch-detected
+  reconciliation-completed: ${RECONCILIATION_EVENTS_TOPIC:reconciliationservicetopic}
+  mismatch-detected: ${RECONCILIATION_EVENTS_TOPIC:reconciliationservicetopic}
 
 ---
 spring:

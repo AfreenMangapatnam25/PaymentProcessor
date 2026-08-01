@@ -1,5 +1,6 @@
 package com.paymentprocessor.ledgerservice.service;
 
+import com.paymentprocessor.ledgerservice.domain.enums.AccountPurpose;
 import com.paymentprocessor.ledgerservice.domain.enums.AccountStatus;
 import com.paymentprocessor.ledgerservice.domain.enums.NormalBalance;
 import com.paymentprocessor.ledgerservice.entity.Account;
@@ -12,6 +13,8 @@ import com.paymentprocessor.ledgerservice.repository.CurrencyRepository;
 import com.paymentprocessor.ledgerservice.support.Ids;
 import com.paymentprocessor.ledgerservice.web.dto.AccountResponse;
 import com.paymentprocessor.ledgerservice.web.dto.CreateAccountRequest;
+import com.paymentprocessor.ledgerservice.web.dto.ProvisionMerchantAccountsRequest;
+import com.paymentprocessor.ledgerservice.web.dto.ProvisionMerchantAccountsResponse;
 import com.paymentprocessor.ledgerservice.web.error.ConflictException;
 import com.paymentprocessor.ledgerservice.web.error.InvalidRequestException;
 import com.paymentprocessor.ledgerservice.web.error.NotFoundException;
@@ -101,6 +104,75 @@ public class AccountService {
     @Transactional(readOnly = true)
     public List<Account> list() {
         return accounts.findAll();
+    }
+
+    @Transactional(readOnly = true)
+    public List<Account> list(String ownerType, String ownerId, String accountCode) {
+        if (accountCode != null && !accountCode.isBlank()) {
+            return accounts.findByAccountCode(accountCode).stream().toList();
+        }
+        if (ownerType != null && !ownerType.isBlank() && ownerId != null && !ownerId.isBlank()) {
+            return accounts.findByOwnerTypeAndOwnerId(ownerType, ownerId);
+        }
+        return accounts.findAll();
+    }
+
+    @Transactional
+    public ProvisionMerchantAccountsResponse provisionMerchantAccounts(ProvisionMerchantAccountsRequest req) {
+        String liabilityId = merchantAccountId(req.merchantId(), "settlement_liability");
+        String reserveId = merchantAccountId(req.merchantId(), "reserve");
+        ensureMerchantAccount(liabilityId, "merchant." + req.merchantId() + ".settlement_liability",
+                "Merchant settlement liability", "LIABILITY", req.currency(), req.merchantId(), "2102");
+        ensureMerchantAccount(reserveId, "merchant." + req.merchantId() + ".reserve",
+                "Merchant rolling reserve", "LIABILITY", req.currency(), req.merchantId(), "1104");
+        return new ProvisionMerchantAccountsResponse(liabilityId, reserveId);
+    }
+
+    @Transactional
+    public Account resolve(AccountPurpose purpose, String ownerId, String currency) {
+        String resolvedCurrency = (currency == null || currency.isBlank()) ? "USD" : currency;
+        return switch (purpose) {
+            case PLATFORM_CASH -> requireActive("platform:cash");
+            case PLATFORM_FEE_REVENUE -> requireActive("platform:fee_revenue");
+            case PLATFORM_PAYOUT_PAYABLE -> requireActive("platform:payout_payable");
+            case PLATFORM_ADJUSTMENT_EXPENSE -> requireActive("platform:adjustment_expense");
+            case PLATFORM_CHARGEBACK_CLEARING -> requireActive("platform:chargeback_clearing");
+            case PLATFORM_FEE_EXPENSE -> requireActive("platform:fee_expense");
+            case MERCHANT_SETTLEMENT_LIABILITY -> requireActive(resolveMerchantAccountId(
+                    ownerId, resolvedCurrency, true));
+            case MERCHANT_RESERVE -> requireActive(resolveMerchantAccountId(
+                    ownerId, resolvedCurrency, false));
+        };
+    }
+
+    private String resolveMerchantAccountId(String ownerId, String currency, boolean liability) {
+        if (ownerId == null || ownerId.isBlank()) {
+            throw new InvalidRequestException("ownerId is required for merchant account purposes");
+        }
+        ProvisionMerchantAccountsResponse provisioned =
+                provisionMerchantAccounts(new ProvisionMerchantAccountsRequest(ownerId, currency));
+        return liability ? provisioned.settlementLiabilityAccountId() : provisioned.reserveAccountId();
+    }
+
+    private Account requireActive(String accountId) {
+        Account account = get(accountId);
+        if (account.getStatus() != AccountStatus.ACTIVE) {
+            throw new InvalidRequestException("Account " + accountId + " is not active");
+        }
+        return account;
+    }
+
+    private void ensureMerchantAccount(String id, String accountCode, String name, String typeCode,
+                                       String currency, String merchantId, String parentAccountId) {
+        if (accounts.existsById(id)) {
+            return;
+        }
+        create(new CreateAccountRequest(id, accountCode, name, typeCode, currency,
+                "MERCHANT", merchantId, parentAccountId));
+    }
+
+    private static String merchantAccountId(String merchantId, String suffix) {
+        return "merchant:" + merchantId + ":" + suffix;
     }
 
     @Transactional

@@ -1,26 +1,19 @@
 package com.paymentprocessor.userservice.infrastructure.kafka;
 
 /**
- * Central registry of the Kafka topics this service publishes to, and the
- * mapping from aggregate type to topic. Keeping this in one place avoids
- * stringly-typed topic names scattered across the code.
+ * Central registry of the Kafka topic this service publishes to.
+ * All aggregate types share {@link #SERVICE_TOPIC} per platform convention.
  */
 public final class KafkaTopics {
 
-    public static final String USERS = "user-service.users.v1";
-    public static final String CUSTOMERS = "user-service.customers.v1";
-    public static final String ADDRESSES = "user-service.addresses.v1";
-    public static final String CONSENTS = "user-service.consents.v1";
+    public static final String SERVICE_TOPIC = "userservicetopic";
 
     private KafkaTopics() {
     }
 
     public static String forAggregate(String aggregateType) {
         return switch (aggregateType) {
-            case "User" -> USERS;
-            case "Customer" -> CUSTOMERS;
-            case "Address" -> ADDRESSES;
-            case "Consent" -> CONSENTS;
+            case "User", "Customer", "Address", "Consent" -> SERVICE_TOPIC;
             default -> throw new IllegalArgumentException("No topic mapped for aggregate: " + aggregateType);
         };
     }

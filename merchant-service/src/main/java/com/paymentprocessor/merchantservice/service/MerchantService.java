@@ -20,6 +20,7 @@ import com.paymentprocessor.merchantservice.entity.KybCase;
 import com.paymentprocessor.merchantservice.entity.Merchant;
 import com.paymentprocessor.merchantservice.entity.MerchantConfiguration;
 import com.paymentprocessor.merchantservice.event.OutboxWriter;
+import com.paymentprocessor.merchantservice.integration.ledger.LedgerProvisioningClient;
 import com.paymentprocessor.merchantservice.repository.BeneficialOwnerRepository;
 import com.paymentprocessor.merchantservice.repository.FeeConfigurationRepository;
 import com.paymentprocessor.merchantservice.repository.KybCaseRepository;
@@ -58,6 +59,7 @@ public class MerchantService {
     private final BeneficialOwnerRepository beneficialOwnerRepository;
     private final MerchantStatusPolicy statusPolicy;
     private final OutboxWriter outbox;
+    private final LedgerProvisioningClient ledgerProvisioningClient;
 
     public MerchantService(MerchantRepository merchantRepository,
                            MerchantConfigurationRepository configurationRepository,
@@ -65,7 +67,8 @@ public class MerchantService {
                            KybCaseRepository kybCaseRepository,
                            BeneficialOwnerRepository beneficialOwnerRepository,
                            MerchantStatusPolicy statusPolicy,
-                           OutboxWriter outbox) {
+                           OutboxWriter outbox,
+                           LedgerProvisioningClient ledgerProvisioningClient) {
         this.merchantRepository = merchantRepository;
         this.configurationRepository = configurationRepository;
         this.feeConfigurationRepository = feeConfigurationRepository;
@@ -73,6 +76,7 @@ public class MerchantService {
         this.beneficialOwnerRepository = beneficialOwnerRepository;
         this.statusPolicy = statusPolicy;
         this.outbox = outbox;
+        this.ledgerProvisioningClient = ledgerProvisioningClient;
     }
 
     // ----- Onboarding -----
@@ -138,6 +142,13 @@ public class MerchantService {
     public MerchantResponse get(UUID merchantId) {
         SecurityUtil.assertMerchantAccess(merchantId);
         return toResponse(loadMerchant(merchantId));
+    }
+
+    @Transactional(readOnly = true)
+    public MerchantResponse getByReference(String merchantReference) {
+        Merchant merchant = merchantRepository.findByMerchantReference(merchantReference)
+                .orElseThrow(() -> ResourceNotFoundException.of("Merchant reference", merchantReference));
+        return toResponse(merchant);
     }
 
     @Transactional(readOnly = true)
@@ -220,6 +231,8 @@ public class MerchantService {
 
         if (to == MerchantStatus.ACTIVE) {
             outbox.append(DomainEventType.MERCHANT_ACTIVATED, AGGREGATE_TYPE, m.getId(), data);
+            ledgerProvisioningClient.provisionMerchantAccounts(
+                    m.getMerchantReference(), m.getDefaultCurrency());
         } else if (to == MerchantStatus.SUSPENDED) {
             outbox.append(DomainEventType.MERCHANT_SUSPENDED, AGGREGATE_TYPE, m.getId(), data);
         }

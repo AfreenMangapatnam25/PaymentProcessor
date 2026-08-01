@@ -94,7 +94,7 @@ analytics:
     retention-days: 30
     max-concurrent-per-merchant: 5
   notifications:
-    kafka-topic: ${REPORT_EVENTS_TOPIC:report.completed}
+    kafka-topic: ${REPORT_EVENTS_TOPIC:reportingservicetopic}
     email:
       enabled: ${EMAIL_ENABLED:true}
       from: ${EMAIL_FROM:reports@paymentprocessor.com}

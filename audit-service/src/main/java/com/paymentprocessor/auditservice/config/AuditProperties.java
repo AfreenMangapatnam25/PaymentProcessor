@@ -62,8 +62,8 @@ public class AuditProperties {
 
     public static class Kafka {
         private boolean enabled = true;
-        private String topic = "audit.events";
-        private String dltTopic = "audit.events.DLT";
+        private String topic = "auditservicetopic";
+        private String dltTopic = "auditservicetopic.DLT";
 
         public boolean isEnabled() { return enabled; }
         public void setEnabled(boolean enabled) { this.enabled = enabled; }
