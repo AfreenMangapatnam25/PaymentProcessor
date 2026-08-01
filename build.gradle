@@ -28,4 +28,19 @@ subprojects {
     tasks.named('test') {
         useJUnitPlatform()
     }
+
+    // Run services via bootRun / IDE — do not produce jar or bootJar artifacts.
+    tasks.named('jar') {
+        enabled = false
+    }
+
+    pluginManager.withPlugin('org.springframework.boot') {
+        tasks.named('bootJar') {
+            enabled = false
+        }
+    }
+}
+
+tasks.named('jar') {
+    enabled = false
 }

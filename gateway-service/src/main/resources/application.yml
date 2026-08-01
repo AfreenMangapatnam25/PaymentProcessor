@@ -3,14 +3,6 @@ spring:
     name: gateway-service
   config:
     import: "optional:configserver:${CONFIG_SERVER_URL:http://localhost:8888}"
-  cloud:
-    config:
-      fail-fast: false
-      retry:
-        max-attempts: 6
-        initial-interval: 1500
-        multiplier: 1.5
-        max-interval: 3000
 
   # --- Redis: backing store for token-bucket rate limits (ephemeral) ---
   data:
@@ -49,6 +41,13 @@ spring:
           jwk-set-uri: ${JWKS_URI:http://localhost:8081/.well-known/jwks.json}
 
   cloud:
+    config:
+      fail-fast: false
+      retry:
+        max-attempts: 6
+        initial-interval: 1500
+        multiplier: 1.5
+        max-interval: 3000
     gateway:
       # Discard duplicated response headers introduced by downstream services.
       default-filters:
