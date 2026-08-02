@@ -16,3 +16,9 @@ build/
 # Locally-generated JWT signing key (contains a private key; never commit)
 .local-keys/
 **/.local-keys/
+
+# Structured JSON logs written for Alloy → Loki (observability)
+logs/**
+!logs/.gitkeep
+**/logs/
+!**/.gitkeep
