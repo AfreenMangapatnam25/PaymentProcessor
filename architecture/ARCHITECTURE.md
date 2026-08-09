@@ -185,8 +185,8 @@ Client Request
 - **Message Queue:** Kafka (event streaming)
 - **Database:** PostgreSQL (primary), Redis (caching/velocity)
 - **Security:** Spring Security, JWT, TLS
-- **Monitoring:** Spring Boot Actuator, Prometheus metrics
-- **Logging:** ELK Stack compatible
+- **Monitoring:** Spring Boot Actuator, Micrometer → Prometheus; Micrometer Tracing → OTel Collector → Tempo; Grafana
+- **Logging:** Structured JSON (Logstash encoder) → Alloy → Loki (see `docker/observability/README.md`)
 
 ## Database Schema (Per Service)
 

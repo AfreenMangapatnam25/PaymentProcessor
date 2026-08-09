@@ -4,9 +4,18 @@
 # Start Kafka only:
 #   docker compose up -d
 #
+# Kafka + observability (Prometheus / Loki / Tempo / Grafana / OTel Collector / Alloy):
+#   docker compose --profile observability up -d
+#
 # Services connect to Kafka at localhost:9092 (KAFKA_BOOTSTRAP_SERVERS).
 # Each microservice publishes to its own topic: {servicename}topic
 # (e.g. merchantservicetopic, ledgerservicetopic).
+#
+# Observability UI: http://localhost:3000 (admin/admin)
+# OTLP endpoints:   localhost:4317 (gRPC), localhost:4318 (HTTP)
+
+include:
+  - path: docker/observability/docker-compose.observability.yml
 
 services:
   kafka:

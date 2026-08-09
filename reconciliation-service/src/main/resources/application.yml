@@ -78,6 +78,19 @@ management:
     health:
       show-details: when-authorized
 
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+  tracing:
+    sampling:
+      probability: ${TRACING_SAMPLING_PROBABILITY:1.0}
+  otlp:
+    tracing:
+      endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4318/v1/traces}
+
 recon:
   matching:
     amount-tolerance: 0.01          # absolute currency-unit tolerance for exact-ish match

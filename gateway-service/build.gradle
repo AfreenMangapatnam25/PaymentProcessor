@@ -51,9 +51,11 @@ dependencies {
 
     // --- Observability: health, metrics, tracing ---
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    // Observability: metrics (Prometheus scrape), traces (OTel -> Collector -> Tempo), JSON logs (Loki)
     implementation 'io.micrometer:micrometer-registry-prometheus'
-    implementation 'io.micrometer:micrometer-tracing-bridge-brave'
-    implementation 'io.zipkin.reporter2:zipkin-reporter-brave'
+    implementation 'io.micrometer:micrometer-tracing-bridge-otel'
+    implementation 'io.opentelemetry:opentelemetry-exporter-otlp'
+    implementation 'net.logstash.logback:logstash-logback-encoder:7.4'
 
     // --- Config metadata generation for @ConfigurationProperties ---
     annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
