@@ -31,8 +31,8 @@ public class LimitProperties {
     @Getter
     @Setter
     public static class Events {
-        private String reservedTopic = "limit.reserved";
-        private String releasedTopic = "limit.released";
-        private String exceededTopic = "limit.exceeded";
+        private String reservedTopic = "limitservicetopic";
+        private String releasedTopic = "limitservicetopic";
+        private String exceededTopic = "limitservicetopic";
     }
 }

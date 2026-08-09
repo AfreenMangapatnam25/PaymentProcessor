@@ -51,7 +51,11 @@ dependencies {
 
     // ---- Observability ----
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    // Observability: metrics (Prometheus scrape), traces (OTel -> Collector -> Tempo), JSON logs (Loki)
     implementation 'io.micrometer:micrometer-registry-prometheus'
+    implementation 'io.micrometer:micrometer-tracing-bridge-otel'
+    implementation 'io.opentelemetry:opentelemetry-exporter-otlp'
+    implementation 'net.logstash.logback:logstash-logback-encoder:7.4'
 
     // ---- Identifiers ----
     implementation "com.github.f4b6a3:ulid-creator:${ulidVersion}"

@@ -3,6 +3,22 @@ target/
 .vscode/
 *.iml
 
+# Gradle build outputs (services run via bootRun, not packaged jars)
+**/build/
+.gradle/
+**/.gradle/
+build/
+
+# Keep Gradle wrapper jar (required to run ./gradlew)
+!gradle/wrapper/gradle-wrapper.jar
+!**/gradle/wrapper/gradle-wrapper.jar
+
 # Locally-generated JWT signing key (contains a private key; never commit)
 .local-keys/
 **/.local-keys/
+
+# Structured JSON logs written for Alloy → Loki (observability)
+logs/**
+!logs/.gitkeep
+**/logs/
+!**/.gitkeep

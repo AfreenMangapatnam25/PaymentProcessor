@@ -94,7 +94,7 @@ analytics:
     retention-days: 30
     max-concurrent-per-merchant: 5
   notifications:
-    kafka-topic: ${REPORT_EVENTS_TOPIC:report.completed}
+    kafka-topic: ${REPORT_EVENTS_TOPIC:reportingservicetopic}
     email:
       enabled: ${EMAIL_ENABLED:true}
       from: ${EMAIL_FROM:reports@paymentprocessor.com}
@@ -112,6 +112,19 @@ management:
   health:
     mail:
       enabled: false
+
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+  tracing:
+    sampling:
+      probability: ${TRACING_SAMPLING_PROBABILITY:1.0}
+  otlp:
+    tracing:
+      endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4318/v1/traces}
 
 # Toggle: lets local/dev runs and the seeded sample data be exercised without a token.
 security:

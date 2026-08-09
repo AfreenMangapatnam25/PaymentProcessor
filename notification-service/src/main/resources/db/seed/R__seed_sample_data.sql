@@ -32,6 +32,29 @@ VALUES (
 )
 ON CONFLICT (key, channel, locale, version) DO NOTHING;
 
+INSERT INTO templates (id, key, channel, locale, subject, body, version, created_at)
+VALUES (
+    'tmpl_00000000000000000000000000000002',
+    'dispute.notification',
+    'email',
+    'en-US',
+    '{{subject}}',
+    '{{body}}',
+    1,
+    now()
+),
+(
+    'tmpl_00000000000000000000000000000003',
+    'dispute.notification',
+    'sms',
+    'en-US',
+    NULL,
+    '{{subject}}: {{body}}',
+    1,
+    now()
+)
+ON CONFLICT (key, channel, locale, version) DO NOTHING;
+
 INSERT INTO webhook_endpoints (
     id, merchant_id, url, secret_ref, subscribed_types, api_version, status, consecutive_failures, created_at
 ) VALUES (

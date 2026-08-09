@@ -18,10 +18,10 @@ resolved routing decisions.
 
 - Validates tokens minted by **authentication-service** without calling it on the
   hot path (JWKS is cached locally).
-- Fans requests out to all 16 routed downstream services: **payment, refund,
+- Fans requests out to all 17 routed downstream services: **payment, refund,
   merchant, user, authentication, tokenization, limit, authorization, fraud,
-  clearing, dispute, settlement, ledger, reconciliation, audit, reporting**.
-  (There is currently no route to **notification-service** — see Routes below.)
+  clearing, dispute, settlement, ledger, reconciliation, notification, audit,
+  reporting**.
 - Emits request events to **audit-service**, both via a normal proxied route
   (`/api/v1/audit-records/**`, `/api/v1/audit/**`) and via a separate
   best-effort async audit sink used by the gateway's own `AuditFilter`.

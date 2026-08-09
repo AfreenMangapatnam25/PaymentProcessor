@@ -67,6 +67,14 @@ settlement:
 notification:
   service:
     base-url: ${NOTIFICATION_SERVICE_URL:http://localhost:8094}
+    internal-api-key: ${NOTIFICATION_INTERNAL_API_KEY:}
+  client:
+    stub: ${NOTIFICATION_CLIENT_STUB:false}
+
+merchant:
+  service:
+    base-url: ${MERCHANT_SERVICE_URL:http://localhost:8083}
+    admin-api-key: ${MERCHANT_ADMIN_API_KEY:admin_local_dev_key_change_me}
 
 # ---------------------------------------------------------------------------
 # Deadline monitor (see DeadlineMonitorJob)
@@ -81,6 +89,29 @@ security:
   jwt:
     enabled: ${SECURITY_JWT_ENABLED:true}
 
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: when_authorized
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+  tracing:
+    sampling:
+      probability: ${TRACING_SAMPLING_PROBABILITY:1.0}
+  otlp:
+    tracing:
+      endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4318/v1/traces}
 ---
 spring:
   config:

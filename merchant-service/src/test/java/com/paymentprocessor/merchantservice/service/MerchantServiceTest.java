@@ -13,6 +13,7 @@ import com.paymentprocessor.merchantservice.dto.StatusChangeRequest;
 import com.paymentprocessor.merchantservice.entity.BeneficialOwner;
 import com.paymentprocessor.merchantservice.entity.Merchant;
 import com.paymentprocessor.merchantservice.event.OutboxWriter;
+import com.paymentprocessor.merchantservice.integration.ledger.LedgerProvisioningClient;
 import com.paymentprocessor.merchantservice.repository.BeneficialOwnerRepository;
 import com.paymentprocessor.merchantservice.repository.FeeConfigurationRepository;
 import com.paymentprocessor.merchantservice.repository.KybCaseRepository;
@@ -47,10 +48,12 @@ class MerchantServiceTest {
     @Mock KybCaseRepository kybCaseRepository;
     @Mock BeneficialOwnerRepository beneficialOwnerRepository;
     @Mock OutboxWriter outbox;
+    @Mock LedgerProvisioningClient ledgerProvisioningClient;
 
     private MerchantService service() {
         return new MerchantService(merchantRepository, configurationRepository, feeConfigurationRepository,
-                kybCaseRepository, beneficialOwnerRepository, new MerchantStatusPolicy(), outbox);
+                kybCaseRepository, beneficialOwnerRepository, new MerchantStatusPolicy(), outbox,
+                ledgerProvisioningClient);
     }
 
     private MerchantOnboardingRequest onboardingRequest() {

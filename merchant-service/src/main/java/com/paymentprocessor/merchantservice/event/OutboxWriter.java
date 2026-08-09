@@ -21,13 +21,13 @@ public class OutboxWriter {
 
     private final OutboxEventRepository outboxRepository;
     private final ObjectMapper objectMapper;
-    private final String topicPrefix;
+    private final String topic;
 
     public OutboxWriter(OutboxEventRepository outboxRepository, ObjectMapper objectMapper,
-                        @Value("${merchant-service.events.topic-prefix}") String topicPrefix) {
+                        @Value("${merchant-service.events.topic}") String topic) {
         this.outboxRepository = outboxRepository;
         this.objectMapper = objectMapper;
-        this.topicPrefix = topicPrefix;
+        this.topic = topic;
     }
 
     @Transactional(propagation = Propagation.MANDATORY)
@@ -37,7 +37,7 @@ public class OutboxWriter {
         row.setAggregateType(aggregateType);
         row.setAggregateId(aggregateId);
         row.setEventType(type.getEventName());
-        row.setTopic(topicPrefix + ".events");
+        row.setTopic(topic);
         row.setMessageKey(aggregateId.toString());
         row.setPayload(serialize(event));
         outboxRepository.save(row);

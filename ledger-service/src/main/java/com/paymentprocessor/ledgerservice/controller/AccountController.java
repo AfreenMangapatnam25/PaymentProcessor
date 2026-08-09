@@ -1,9 +1,12 @@
 package com.paymentprocessor.ledgerservice.controller;
 
+import com.paymentprocessor.ledgerservice.domain.enums.AccountPurpose;
 import com.paymentprocessor.ledgerservice.entity.Account;
 import com.paymentprocessor.ledgerservice.service.AccountService;
 import com.paymentprocessor.ledgerservice.web.dto.AccountResponse;
 import com.paymentprocessor.ledgerservice.web.dto.CreateAccountRequest;
+import com.paymentprocessor.ledgerservice.web.dto.ProvisionMerchantAccountsRequest;
+import com.paymentprocessor.ledgerservice.web.dto.ProvisionMerchantAccountsResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -15,6 +18,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -37,9 +41,28 @@ public class AccountController {
     }
 
     @GetMapping
-    @Operation(summary = "List all accounts")
-    public List<AccountResponse> list() {
-        return accountService.list().stream().map(accountService::toResponse).toList();
+    @Operation(summary = "List accounts, optionally filtered by owner or account code")
+    public List<AccountResponse> list(@RequestParam(required = false) String ownerType,
+                                      @RequestParam(required = false) String ownerId,
+                                      @RequestParam(required = false) String accountCode) {
+        return accountService.list(ownerType, ownerId, accountCode).stream()
+                .map(accountService::toResponse).toList();
+    }
+
+    @GetMapping("/resolve")
+    @Operation(summary = "Resolve a well-known account purpose to an account id")
+    public AccountResponse resolve(@RequestParam AccountPurpose purpose,
+                                   @RequestParam(required = false) String ownerId,
+                                   @RequestParam(defaultValue = "USD") String currency) {
+        return accountService.toResponse(accountService.resolve(purpose, ownerId, currency));
+    }
+
+    @PostMapping("/provision-merchant")
+    @ResponseStatus(HttpStatus.CREATED)
+    @Operation(summary = "Provision merchant settlement and reserve ledger accounts (idempotent)")
+    public ProvisionMerchantAccountsResponse provisionMerchant(
+            @Valid @RequestBody ProvisionMerchantAccountsRequest request) {
+        return accountService.provisionMerchantAccounts(request);
     }
 
     @GetMapping("/{id}")

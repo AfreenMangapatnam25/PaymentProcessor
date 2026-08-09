@@ -3,14 +3,6 @@ spring:
     name: gateway-service
   config:
     import: "optional:configserver:${CONFIG_SERVER_URL:http://localhost:8888}"
-  cloud:
-    config:
-      fail-fast: false
-      retry:
-        max-attempts: 6
-        initial-interval: 1500
-        multiplier: 1.5
-        max-interval: 3000
 
   # --- Redis: backing store for token-bucket rate limits (ephemeral) ---
   data:
@@ -49,6 +41,13 @@ spring:
           jwk-set-uri: ${JWKS_URI:http://localhost:8081/.well-known/jwks.json}
 
   cloud:
+    config:
+      fail-fast: false
+      retry:
+        max-attempts: 6
+        initial-interval: 1500
+        multiplier: 1.5
+        max-interval: 3000
     gateway:
       # Discard duplicated response headers introduced by downstream services.
       default-filters:
@@ -537,6 +536,8 @@ resilience4j:
         baseConfig: default
       reconciliationCircuitBreaker:
         baseConfig: default
+      notificationCircuitBreaker:
+        baseConfig: default
       auditCircuitBreaker:
         baseConfig: default
       reportingCircuitBreaker:
@@ -561,6 +562,7 @@ resilience4j:
       settlementCircuitBreaker: { baseConfig: default }
       ledgerCircuitBreaker: { baseConfig: default }
       reconciliationCircuitBreaker: { baseConfig: default }
+      notificationCircuitBreaker: { baseConfig: default }
       auditCircuitBreaker: { baseConfig: default }
       reportingCircuitBreaker: { baseConfig: default }
 
@@ -595,15 +597,19 @@ management:
   health:
     redis:
       enabled: true
+
   metrics:
     tags:
       application: ${spring.application.name}
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
   tracing:
     sampling:
-      probability: ${TRACE_SAMPLE_RATE:0.1}
-  zipkin:
+      probability: ${TRACING_SAMPLING_PROBABILITY:1.0}
+  otlp:
     tracing:
-      endpoint: ${ZIPKIN_ENDPOINT:http://zipkin:9411/api/v2/spans}
+      endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4318/v1/traces}
 
 logging:
   pattern:

@@ -43,6 +43,13 @@ spring:
   profiles:
     active:
       - local
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+      retries: 3
 
 server:
   port: 8085
@@ -56,14 +63,6 @@ eureka:
   instance:
     hostname: localhost
 
-  kafka:
-    bootstrap-servers: localhost:9092
-    producer:
-      key-serializer: org.apache.kafka.common.serialization.StringSerializer
-      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
-      acks: all
-      retries: 3
-
 limit:
   daily-transaction-limit: 10000.00
   monthly-transaction-limit: 100000.00
@@ -74,9 +73,9 @@ limit:
   reservation-ttl-minutes: 15
   # Kafka topics for published domain events.
   events:
-    reserved-topic: limit.reserved
-    released-topic: limit.released
-    exceeded-topic: limit.exceeded
+    reserved-topic: ${LIMIT_EVENTS_TOPIC:limitservicetopic}
+    released-topic: ${LIMIT_EVENTS_TOPIC:limitservicetopic}
+    exceeded-topic: ${LIMIT_EVENTS_TOPIC:limitservicetopic}
 
 springdoc:
   swagger-ui:
@@ -89,6 +88,19 @@ management:
     web:
       exposure:
         include: health,info,metrics,prometheus
+
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+  tracing:
+    sampling:
+      probability: ${TRACING_SAMPLING_PROBABILITY:1.0}
+  otlp:
+    tracing:
+      endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4318/v1/traces}
 
 logging:
   level:

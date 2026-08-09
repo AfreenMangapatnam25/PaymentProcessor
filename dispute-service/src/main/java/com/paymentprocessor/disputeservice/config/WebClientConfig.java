@@ -36,4 +36,10 @@ public class WebClientConfig {
             @Value("${notification.service.base-url}") String baseUrl) {
         return WebClient.builder().baseUrl(baseUrl).build();
     }
+
+    @Bean
+    public WebClient merchantServiceWebClient(
+            @Value("${merchant.service.base-url}") String baseUrl) {
+        return WebClient.builder().baseUrl(baseUrl).build();
+    }
 }

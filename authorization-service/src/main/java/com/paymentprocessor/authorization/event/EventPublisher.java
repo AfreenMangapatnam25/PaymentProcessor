@@ -21,13 +21,13 @@ public class EventPublisher {
 
     @Async("eventExecutor")
     public void publishAuthorizationEvent(AuthorizationEvent event) {
-        send(KafkaTopicConfig.AUTHORIZATION_EVENTS, event.authorizationId().toString(), event, event.eventType());
+        send(KafkaTopicConfig.SERVICE_EVENTS_TOPIC, event.authorizationId().toString(), event, event.eventType());
     }
 
     @Async("eventExecutor")
     public void publishAccessControlEvent(AccessControlEvent event) {
         String key = event.identityId() != null ? event.identityId() : event.eventId().toString();
-        send(KafkaTopicConfig.ACCESS_CONTROL_EVENTS, key, event, event.eventType());
+        send(KafkaTopicConfig.SERVICE_EVENTS_TOPIC, key, event, event.eventType());
     }
 
     private void send(String topic, String key, Object payload, String type) {

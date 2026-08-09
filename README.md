@@ -318,7 +318,12 @@ much higher transaction rates.
 ```bash
 ./gradlew build              # compiles and tests all 17 modules
 ./gradlew :payment-service:bootRun   # run a single service (repeat per service, own port/DB)
+
+# Observability (Prometheus / Loki / Tempo / Grafana / OTel Collector / Alloy)
+docker compose --profile observability up -d
 ```
+
+Grafana: http://localhost:3000 (`admin` / `admin`). Full details: [`docker/observability/README.md`](docker/observability/README.md).
 
 Each service reads its Postgres connection from `DB_HOST`/`DB_PORT`/`DB_NAME`/
 `DB_USERNAME`/`DB_PASSWORD` (see each service's `README.md` for its specific defaults), and

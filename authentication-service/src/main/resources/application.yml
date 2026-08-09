@@ -63,6 +63,19 @@ management:
         enabled: true
       show-details: when_authorized
 
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+  tracing:
+    sampling:
+      probability: ${TRACING_SAMPLING_PROBABILITY:1.0}
+  otlp:
+    tracing:
+      endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4318/v1/traces}
+
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
@@ -142,12 +155,12 @@ auth:
     token-ttl: ${RESET_TTL:PT30M}
   events:
     topics:
-      user-logged-in: ${TOPIC_LOGIN:auth.user.logged-in}
-      user-logged-out: ${TOPIC_LOGOUT:auth.user.logged-out}
-      password-changed: ${TOPIC_PWD:auth.password.changed}
-      mfa-enabled: ${TOPIC_MFA:auth.mfa.enabled}
-      account-locked: ${TOPIC_LOCK:auth.account.locked}
-      new-device: ${TOPIC_DEVICE:auth.device.new-login}
+      user-logged-in: ${AUTH_EVENTS_TOPIC:authenticationservicetopic}
+      user-logged-out: ${AUTH_EVENTS_TOPIC:authenticationservicetopic}
+      password-changed: ${AUTH_EVENTS_TOPIC:authenticationservicetopic}
+      mfa-enabled: ${AUTH_EVENTS_TOPIC:authenticationservicetopic}
+      account-locked: ${AUTH_EVENTS_TOPIC:authenticationservicetopic}
+      new-device: ${AUTH_EVENTS_TOPIC:authenticationservicetopic}
 
 ---
 spring:

@@ -6,6 +6,7 @@ import com.paymentprocessor.disputeservice.integration.NotificationClient;
 import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 /**
@@ -19,9 +20,10 @@ import org.springframework.stereotype.Component;
  * and pre-rendered free-text subject/body, so there is no faithful mapping
  * from this interface's signature onto that endpoint without inventing a
  * template and fabricating a contact address. This intentionally remains a
- * logging fallback rather than making a call with made-up data.
+ * logging fallback when {@code notification.client.stub=true}.
  */
 @Component
+@ConditionalOnProperty(name = "notification.client.stub", havingValue = "true")
 public class LoggingNotificationClient implements NotificationClient {
 
     private static final Logger log = LoggerFactory.getLogger(LoggingNotificationClient.class);
